@@ -108,12 +108,12 @@ namespace ASC.Files.Core.Data
                 .Where(where);
         }
 
-        protected void GetRecalculateFilesCountUpdate(object folderId)
+        protected void GetRecalculateFilesCountUpdate(int folderId)
         {
             var folders = FilesDbContext.Folders
 
                 .Where(r => r.TenantId == TenantID)
-                .Where(r => FilesDbContext.Tree.Where(r => r.FolderId.ToString() == folderId.ToString()).Select(r => r.ParentId).Any(a => a == r.Id))
+                .Where(r => FilesDbContext.Tree.Where(r => r.FolderId == folderId).Select(r => r.ParentId).Any(a => a == r.Id))
                 .ToList();
 
             foreach (var f in folders)
@@ -164,7 +164,8 @@ namespace ASC.Files.Core.Data
                 var newItem = new DbFilesThirdpartyIdMapping
                 {
                     Id = id.ToString(),
-                    HashId = result.ToString()
+                    HashId = result.ToString(),
+                    TenantId = TenantID
                 };
 
                 FilesDbContext.AddOrUpdate(r => r.ThirdpartyIdMapping, newItem);

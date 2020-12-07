@@ -30,11 +30,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Common.Security.Authentication;
+using ASC.Core.Common.Settings;
 using ASC.Core.Tenants;
 using ASC.Files.Core;
 using ASC.Web.Files.Classes;
 using ASC.Web.Files.Utils;
+using ASC.Web.Studio.Core;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -85,15 +88,16 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
 
         protected override async Task Do(IServiceScope scope)
         {
-            var fileMarker = scope.ServiceProvider.GetService<FileMarker>();
+            var scopeClass = scope.ServiceProvider.GetService<FileMarkAsReadOperationScope>();
+            var (fileMarker, globalFolder, daoFactory, settingsManager) = scopeClass;
             var entries = new List<FileEntry<T>>();
             if (Folders.Any())
             {
-                entries.AddRange(await FolderDao.GetFolders(Folders.ToArray()));
+                entries.AddRange(await FolderDao.GetFolders(Folders));
             }
             if (Files.Any())
             {
-                entries.AddRange(await FileDao.GetFiles(Files.ToArray()));
+                entries.AddRange(await FileDao.GetFiles(Files));
             }
             entries.ForEach(async x =>
             {
@@ -112,8 +116,6 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 ProgressStep();
             });
 
-            var globalFolder = scope.ServiceProvider.GetService<GlobalFolder>();
-            var daoFactory = scope.ServiceProvider.GetService<IDaoFactory>();
             var rootIds = new List<int>
                 {
                     await globalFolder.GetFolderMy(fileMarker, daoFactory),
@@ -121,6 +123,11 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                     await globalFolder.GetFolderShare(daoFactory),
                     await globalFolder.GetFolderProjects(daoFactory),
                 };
+
+            if (PrivacyRoomSettings.GetEnabled(settingsManager))
+            {
+                rootIds.Add(await globalFolder.GetFolderPrivacy(daoFactory));
+            }
 
             var nrf = new Dictionary<int, int>();
             foreach (var r in rootIds)
@@ -131,6 +138,39 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             var newrootfolder = nrf.Select(item => $"new_{{\"key\"? \"{item.Key}\", \"value\"? \"{item.Value}\"}}");
 
             Status += string.Join(SPLIT_CHAR, newrootfolder.ToArray());
+        }
+    }
+
+    [Scope]
+    public class FileMarkAsReadOperationScope
+    {
+        private FileMarker FileMarker { get; }
+        private GlobalFolder GlobalFolder { get; }
+        private IDaoFactory DaoFactory { get; }
+        private SettingsManager SettingsManager { get; }
+
+        public FileMarkAsReadOperationScope(
+            FileMarker fileMarker,
+            GlobalFolder globalFolder,
+            IDaoFactory daoFactory,
+            SettingsManager settingsManager)
+        {
+            FileMarker = fileMarker;
+            GlobalFolder = globalFolder;
+            DaoFactory = daoFactory;
+            SettingsManager = settingsManager;
+        }
+
+        public void Deconstruct(
+            out FileMarker fileMarker,
+            out GlobalFolder globalFolder,
+            out IDaoFactory daoFactory,
+            out SettingsManager settingsManager)
+        {
+            fileMarker = FileMarker;
+            globalFolder = GlobalFolder;
+            daoFactory = DaoFactory;
+            settingsManager = SettingsManager;
         }
     }
 }

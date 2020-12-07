@@ -97,6 +97,15 @@ namespace ASC.Web.Core.PublicResources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to New Document.
+        /// </summary>
+        public static string NewDocument {
+            get {
+                return ResourceManager.GetString("NewDocument", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to month.
         /// </summary>
         public static string TariffPerMonth {

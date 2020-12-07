@@ -34,11 +34,11 @@ using ASC.Common;
 using ASC.Core;
 using ASC.Files.Core;
 using ASC.Files.Core.Data;
-using ASC.Files.Core.Security;
 using ASC.Files.Core.Thirdparty;
 
 namespace ASC.Files.Thirdparty.ProviderDao
 {
+    [Scope]
     internal class ProviderFolderDao : ProviderDaoBase, IFolderDao<string>
     {
         public ProviderFolderDao(
@@ -54,6 +54,8 @@ namespace ASC.Files.Thirdparty.ProviderDao
         public async Task<Folder<string>> GetFolder(string folderId)
         {
             var selector = GetSelector(folderId);
+            if (selector == null) return null;
+
             var folderDao = selector.GetFolderDao(folderId);
             var result = await folderDao.GetFolder(selector.ConvertId(folderId));
 
@@ -109,7 +111,7 @@ namespace ASC.Files.Thirdparty.ProviderDao
             return result;
         }
 
-        public async Task<List<Folder<string>>> GetFolders(string[] folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)
+        public async Task<List<Folder<string>>> GetFolders(IEnumerable<string> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)
         {
             var result = Enumerable.Empty<Folder<string>>();
 
@@ -122,10 +124,10 @@ namespace ASC.Files.Thirdparty.ProviderDao
 
                 foreach (var m in matchedIds.GroupBy(selectorLocal.GetIdCode))
                 {
-                    var folderDao = selectorLocal.GetFolderDao(m.FirstOrDefault());
-                    result = result.Concat((await folderDao.GetFolders(m.Select(selectorLocal.ConvertId).ToArray(), filterType, subjectGroup, subjectID, searchText, searchSubfolders, checkShare)).Where(r => r != null));
-                }
+                var folderDao = selectorLocal.GetFolderDao(m.FirstOrDefault());
+                result = result.Concat((await folderDao.GetFolders(m.Select(selectorLocal.ConvertId).ToList(), filterType, subjectGroup, subjectID, searchText, searchSubfolders, checkShare)).Where(r => r != null));
             }
+        }
 
             return result.Distinct().ToList();
         }
@@ -151,14 +153,14 @@ namespace ASC.Files.Thirdparty.ProviderDao
                 folder.ID = folderId;
                 return newFolderId;
             }
-            if (folder.ParentFolderID != null)
+            if (folder.FolderID != null)
             {
-                var folderId = folder.ParentFolderID;
+                var folderId = folder.FolderID;
                 var selector = GetSelector(folderId);
-                folder.ParentFolderID = selector.ConvertId(folderId);
+                folder.FolderID = selector.ConvertId(folderId);
                 var folderDao = selector.GetFolderDao(folderId);
                 var newFolderId = await folderDao.SaveFolder(folder);
-                folder.ParentFolderID = folderId;
+                folder.FolderID = folderId;
                 return newFolderId;
 
             }
@@ -272,7 +274,7 @@ namespace ASC.Files.Thirdparty.ProviderDao
             var folderId = folder.ID;
             var selector = GetSelector(folderId);
             folder.ID = selector.ConvertId(folderId);
-            folder.ParentFolderID = selector.ConvertId(folder.ParentFolderID);
+            folder.FolderID = selector.ConvertId(folder.FolderID);
             var folderDao = selector.GetFolderDao(folderId);
             return await folderDao.RenameFolder(folder, newTitle);
         }
@@ -346,96 +348,5 @@ namespace ASC.Files.Thirdparty.ProviderDao
 
             return storageMaxUploadSize;
         }
-
-        #region Only for TMFolderDao
-
-        public Task ReassignFolders(string[] folderIds, Guid newOwnerId)
-        {
-            throw new NotImplementedException();
         }
-
-        public Task<IEnumerable<Folder<string>>> Search(string text, bool bunch)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderID(string module, string bunch, string data, bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<string>> GetFolderIDs(string module, string bunch, IEnumerable<string> data, bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDCommon(bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDProjects(bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDPhotos(bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetBunchObjectID(string folderID)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<Dictionary<string, string>> GetBunchObjectIDs(List<string> folderIDs)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDUser(bool createIfNotExists, Guid? userId = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDShare(bool createIfNotExists)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<string> GetFolderIDTrash(bool createIfNotExists, Guid? userId = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<(Folder<string>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<string> GetTenantsWithFeeds(DateTime fromTime)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion
-    }
-
-    public static class ProviderFolderDaoExtention
-    {
-        public static DIHelper AddProviderFolderDaoService(this DIHelper services)
-        {
-            if (services.TryAddScoped<ProviderFolderDao>())
-            {
-                services.TryAddScoped<Folder<string>>();
-            services.TryAddScoped<IFolderDao<string>, ProviderFolderDao>();
-
-            return services
-                .AddProviderDaoBaseService();
-        }
-
-            return services;
-    }
-    }
 }

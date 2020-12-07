@@ -35,7 +35,6 @@ using ASC.Common;
 using ASC.Core;
 using ASC.Core.Users;
 using ASC.Files.Core;
-using ASC.Files.Core.Data;
 using ASC.Files.Core.Resources;
 using ASC.Files.Core.Security;
 using ASC.Security.Cryptography;
@@ -48,6 +47,7 @@ using FileShare = ASC.Files.Core.Security.FileShare;
 
 namespace ASC.Web.Files.Services.DocumentService
 {
+    [Scope(Additional = typeof(ConfigurationExtention))]
     public class DocumentServiceHelper
     {
         private IDaoFactory DaoFactory { get; }
@@ -130,6 +130,8 @@ namespace ASC.Web.Files.Services.DocumentService
             var rightToComment = rightToEdit;
             var commentPossible = editPossible;
 
+            var rightModifyFilter = rightToEdit;
+
             if (linkRight == FileShare.Restrict && UserManager.GetUsers(AuthContext.CurrentAccount.ID).IsVisitor(UserManager))
             {
                 rightToEdit = false;
@@ -140,12 +142,16 @@ namespace ASC.Web.Files.Services.DocumentService
 
             var fileSecurity = FileSecurity;
             rightToEdit = rightToEdit
-                          && (linkRight == FileShare.ReadWrite
-                              || await fileSecurity.CanEdit(file));
+                          && (linkRight == FileShare.ReadWrite || linkRight == FileShare.CustomFilter
+                              || await fileSecurity.CanEdit(file) || await fileSecurity.CanCustomFilterEdit(file));
             if (editPossible && !rightToEdit)
             {
                 editPossible = false;
             }
+
+            rightModifyFilter = rightModifyFilter
+                && (linkRight == FileShare.ReadWrite
+                    || await fileSecurity.CanEdit(file));
 
             rightToRename = rightToRename && rightToEdit && await fileSecurity.CanEdit(file);
 
@@ -202,6 +208,16 @@ namespace ASC.Web.Files.Services.DocumentService
                 rightToEdit = editPossible = false;
             }
 
+            if (file.Encrypted
+                && file.RootFolderType != FolderType.Privacy)
+            {
+                rightToEdit = editPossible = false;
+                rightToReview = reviewPossible = false;
+                rightToFillForms = fillFormsPossible = false;
+                rightToComment = commentPossible = false;
+            }
+
+
             if (!editPossible && !FileUtility.CanWebView(file.Title)) throw new Exception(string.Format("{0} ({1})", FilesCommonResource.ErrorMassage_NotSupportedFormat, FileUtility.GetFileExtension(file.Title)));
 
             if (reviewPossible &&
@@ -222,7 +238,7 @@ namespace ASC.Web.Files.Services.DocumentService
                 rightToComment = commentPossible = false;
             }
 
-            var rightChangeHistory = rightToEdit;
+            var rightChangeHistory = rightToEdit && !file.Encrypted;
 
             if (FileTracker.IsEditing(file.ID))
             {
@@ -268,6 +284,7 @@ namespace ASC.Web.Files.Services.DocumentService
                                     FillForms = rightToFillForms && lastVersion,
                                     Comment = rightToComment && lastVersion,
                                     ChangeHistory = rightChangeHistory,
+                                    ModifyFilter = rightModifyFilter
                                 }
                         },
                 EditorConfig =
@@ -320,7 +337,8 @@ namespace ASC.Web.Files.Services.DocumentService
         {
             var fileSecurity = FileSecurity;
             var sharedLink =
-                   await fileSecurity.CanEdit(file, FileConstant.ShareLinkId)
+                await fileSecurity.CanEdit(file, FileConstant.ShareLinkId)
+                || await fileSecurity.CanCustomFilterEdit(file, FileConstant.ShareLinkId)
                 || await fileSecurity.CanReview(file, FileConstant.ShareLinkId)
                 || await fileSecurity.CanFillForms(file, FileConstant.ShareLinkId)
                 || await fileSecurity.CanComment(file, FileConstant.ShareLinkId);
@@ -333,10 +351,11 @@ namespace ASC.Web.Files.Services.DocumentService
                                                    return !sharedLink;
                                                }
                                                return
-                                               !fileSecurity.CanEdit(file, uid).Result &&
-                                               !fileSecurity.CanReview(file, uid).Result &&
-                                               !fileSecurity.CanFillForms(file, uid).Result &&
-                                               !fileSecurity.CanComment(file, uid).Result;
+                                                    !fileSecurity.CanEdit(file, uid).Result
+                                                    && !fileSecurity.CanCustomFilterEdit(file, uid).Result
+                                                    && !fileSecurity.CanReview(file, uid).Result
+                                                    && !fileSecurity.CanFillForms(file, uid).Result
+                                                    && !fileSecurity.CanComment(file, uid).Result;
                                            })
                                        .Select(u => u.ToString())
                                        .ToArray(); //TODO: result
@@ -362,6 +381,7 @@ namespace ASC.Web.Files.Services.DocumentService
         public async Task<bool> RenameFile<T>(File<T> file, IFileDao<T> fileDao)
         {
             if (!FileUtility.CanWebView(file.Title)
+                && !FileUtility.CanWebCustomFilterEditing(file.Title)
                 && !FileUtility.CanWebEdit(file.Title)
                 && !FileUtility.CanWebReview(file.Title)
                 && !FileUtility.CanWebRestrictedEditing(file.Title)
@@ -374,29 +394,5 @@ namespace ASC.Web.Files.Services.DocumentService
             var meta = new Web.Core.Files.DocumentService.MetaData { Title = file.Title };
             return DocumentServiceConnector.Command(Web.Core.Files.DocumentService.CommandMethod.Meta, docKeyForTrack, file.ID, meta: meta);
         }
-    }
-    public static class DocumentServiceHelperExtention
-    {
-        public static DIHelper AddDocumentServiceHelperService(this DIHelper services)
-        {
-            if (services.TryAddScoped<DocumentServiceHelper>())
-            {
-            return services
-                .AddDaoFactoryService()
-                .AddFileShareLinkService()
-                .AddUserManagerService()
-                .AddAuthContextService()
-                .AddFileSecurityService()
-                .AddSetupInfo()
-                .AddLockerManagerService()
-                .AddFileUtilityService()
-                .AddMachinePseudoKeysService()
-                .AddGlobalService()
-                .AddDocumentServiceConnectorService()
-                .AddConfigurationService();
-        }
-
-            return services;
-    }
     }
 }

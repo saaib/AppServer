@@ -42,6 +42,7 @@ using ASC.Web.Studio.Utility;
 
 namespace ASC.Files.Core.Data
 {
+    [Scope]
     internal class SecurityDao<T> : AbstractDao, ISecurityDao<T>
     {
         public SecurityDao(UserManager userManager,
@@ -105,8 +106,7 @@ namespace ASC.Files.Core.Data
                 var entryId = (MappingID(r.EntryId) ?? "").ToString();
                 if (string.IsNullOrEmpty(entryId)) return;
 
-                using (var tx = FilesDbContext.Database.BeginTransaction())
-                {
+                using var tx = FilesDbContext.Database.BeginTransaction();
                     var files = new List<string>();
 
                     if (r.EntryType == FileEntryType.Folder)
@@ -159,7 +159,6 @@ namespace ASC.Files.Core.Data
 
                     tx.Commit();
                 }
-            }
             else
             {
                 var toInsert = new DbFilesSecurity
@@ -346,8 +345,10 @@ namespace ASC.Files.Core.Data
                 .ToList();
         }
 
-        private FileShareRecord ToFileShareRecord(DbFilesSecurity r) => new FileShareRecord
+        private FileShareRecord ToFileShareRecord(DbFilesSecurity r)
         {
+            return new FileShareRecord
+            {
             Tenant = r.TenantId,
             EntryId = MappingID(r.EntryId),
             EntryType = r.EntryType,
@@ -355,12 +356,18 @@ namespace ASC.Files.Core.Data
             Owner = r.Owner,
             Share = r.Security
         };
+        }
 
         private FileShareRecord ToFileShareRecord(SecurityTreeRecord r)
         {
             var result = ToFileShareRecord(r.DbFilesSecurity);
-            result.EntryId = r.DbFolderTree?.FolderId;
+            if (r.DbFolderTree != null)
+            {
+                result.EntryId = r.DbFolderTree.FolderId;
+            }
+
             result.Level = r.DbFolderTree?.Level ?? -1;
+
             return result;
         }
     }
@@ -369,32 +376,5 @@ namespace ASC.Files.Core.Data
     {
         public DbFilesSecurity DbFilesSecurity { get; set; }
         public DbFolderTree DbFolderTree { get; set; }
-    }
-
-    public static class SecurityDaoExtention
-    {
-        public static DIHelper AddSecurityDaoService(this DIHelper services)
-        {
-            if (services.TryAddScoped<SecurityDao<int>>())
-            {
-                services.TryAddScoped<SecurityDao<string>>();
-            services.TryAddScoped<ISecurityDao<int>, SecurityDao<int>>();
-
-            return services
-                .AddUserManagerService()
-                .AddFilesDbContextService()
-                .AddTenantManagerService()
-                .AddTenantUtilService()
-                .AddSetupInfo()
-                .AddTenantExtraService()
-                .AddTenantStatisticsProviderService()
-                .AddCoreBaseSettingsService()
-                .AddCoreConfigurationService()
-                .AddSettingsManagerService()
-                .AddAuthContextService();
-        }
-
-            return services;
-    }
     }
 }

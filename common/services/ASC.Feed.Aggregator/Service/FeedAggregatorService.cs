@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using ASC.Common;
 using ASC.Common.Caching;
 using ASC.Common.Logging;
+using ASC.Common.Utils;
 using ASC.Core;
 using ASC.Core.Common;
 using ASC.Core.Notify.Signalr;
@@ -42,14 +43,14 @@ using ASC.Feed.Data;
 
 using Autofac;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
 namespace ASC.Feed.Aggregator
 {
-    public class FeedAggregatorService : IHostedService
+    [Singletone(Additional = typeof(FeedAggregatorServiceExtension))]
+    public class FeedAggregatorService : IHostedService, IDisposable
     {
         private ILog Log { get; set; }
         private SignalrServiceClient SignalrServiceClient { get; }
@@ -61,24 +62,22 @@ namespace ASC.Feed.Aggregator
         private readonly object aggregateLock = new object();
         private readonly object removeLock = new object();
 
-        private IConfiguration Configuration { get; }
+        private ConfigurationExtension Configuration { get; }
         private IServiceProvider ServiceProvider { get; }
-        public IContainer Container { get; }
+        public ILifetimeScope Container { get; }
 
         public FeedAggregatorService(
-            IConfiguration configuration,
+            ConfigurationExtension configuration,
             IServiceProvider serviceProvider,
-            IContainer container,
+            ILifetimeScope container,
             IOptionsMonitor<ILog> optionsMonitor,
-            SignalrServiceClient signalrServiceClient,
-            IConfigureNamedOptions<SignalrServiceClient> configureOptions)
+            IOptionsSnapshot<SignalrServiceClient> optionsSnapshot)
         {
             Configuration = configuration;
             ServiceProvider = serviceProvider;
             Container = container;
             Log = optionsMonitor.Get("ASC.Feed.Agregator");
-            SignalrServiceClient = signalrServiceClient;
-            configureOptions.Configure("counters", SignalrServiceClient);
+            SignalrServiceClient = optionsSnapshot.Get("counters");
         }
 
         public Task StartAsync(CancellationToken cancellationToken)
@@ -121,11 +120,9 @@ namespace ASC.Feed.Aggregator
             {
                 var cfg = FeedSettings.GetInstance(Configuration);
                 using var scope = ServiceProvider.CreateScope();
-                var commonLinkUtility = scope.ServiceProvider.GetService<BaseCommonLinkUtility>();
-                commonLinkUtility.Initialize(cfg.ServerRoot);
-
-                var tenantManager = scope.ServiceProvider.GetService<TenantManager>();
-                var feedAggregateDataProvider = scope.ServiceProvider.GetService<FeedAggregateDataProvider>();
+                var scopeClass = scope.ServiceProvider.GetService<FeedAggregatorServiceScope>();
+                var (baseCommonLinkUtility, tenantManager, feedAggregateDataProvider, userManager, securityContext, authManager) = scopeClass;
+                baseCommonLinkUtility.Initialize(cfg.ServerRoot);
 
                 var start = DateTime.UtcNow;
                 Log.DebugFormat("Start of collecting feeds...");
@@ -161,9 +158,6 @@ namespace ASC.Feed.Aggregator
                             }
 
                             tenantManager.SetCurrentTenant(tenant);
-                            var userManager = scope.ServiceProvider.GetService<UserManager>();
-                            var securityContext = scope.ServiceProvider.GetService<SecurityContext>();
-                            var authManager = scope.ServiceProvider.GetService<AuthManager>();
                             var users = userManager.GetUsers();
 
                             var feeds = Attempt(10, () => module.GetFeeds(new FeedFilter(fromTime, toTime) { Tenant = tenant }).Where(r => r.Item1 != null).ToList());
@@ -291,22 +285,67 @@ namespace ASC.Feed.Aggregator
                 return false;
             }
         }
+
+        public void Dispose()
+        {
+            if (aggregateTimer != null)
+            {
+                aggregateTimer.Dispose();
+            }
+
+            if (removeTimer != null)
+            {
+                removeTimer.Dispose();
+            }
+        }
     }
 
-    public static class FeedAggregatorServiceExtension
+    [Scope]
+    public class FeedAggregatorServiceScope
     {
-        public static DIHelper AddFeedAggregatorService(this DIHelper services)
-        {
-            services.TryAddSingleton<FeedAggregatorService>();
+        private BaseCommonLinkUtility BaseCommonLinkUtility { get; }
+        private TenantManager TenantManager { get; }
+        private FeedAggregateDataProvider FeedAggregateDataProvider { get; }
+        private UserManager UserManager { get; }
+        private SecurityContext SecurityContext { get; }
+        private AuthManager AuthManager { get; }
 
-            return services
-                .AddBaseCommonLinkUtilityService()
-                .AddTenantManagerService()
-                .AddUserManagerService()
-                .AddSecurityContextService()
-                .AddAuthManager()
-                .AddFeedAggregateDataProvider()
-                .AddSignalrServiceClient();
+        public FeedAggregatorServiceScope(BaseCommonLinkUtility baseCommonLinkUtility,
+            TenantManager tenantManager,
+            FeedAggregateDataProvider feedAggregateDataProvider,
+            UserManager userManager,
+            SecurityContext securityContext,
+            AuthManager authManager)
+        {
+            BaseCommonLinkUtility = baseCommonLinkUtility;
+            TenantManager = tenantManager;
+            FeedAggregateDataProvider = feedAggregateDataProvider;
+            UserManager = userManager;
+            SecurityContext = securityContext;
+            AuthManager = authManager;
+        }
+
+        public void Deconstruct(out BaseCommonLinkUtility baseCommonLinkUtility,
+            out TenantManager tenantManager,
+            out FeedAggregateDataProvider feedAggregateDataProvider,
+            out UserManager userManager,
+            out SecurityContext securityContext,
+            out AuthManager authManager)
+        {
+            baseCommonLinkUtility = BaseCommonLinkUtility;
+            tenantManager = TenantManager;
+            feedAggregateDataProvider = FeedAggregateDataProvider;
+            userManager = UserManager;
+            securityContext = SecurityContext;
+            authManager = AuthManager;
+        }
+    }
+
+    public class FeedAggregatorServiceExtension
+    {
+        public static void Register(DIHelper services)
+        {
+            services.TryAdd<FeedAggregatorServiceScope>();
         }
     }
 }

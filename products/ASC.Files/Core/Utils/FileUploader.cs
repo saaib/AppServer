@@ -36,7 +36,6 @@ using ASC.Common;
 using ASC.Core;
 using ASC.Core.Users;
 using ASC.Files.Core;
-using ASC.Files.Core.Data;
 using ASC.Files.Core.Resources;
 using ASC.Files.Core.Security;
 using ASC.MessagingSystem;
@@ -51,6 +50,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ASC.Web.Files.Utils
 {
+    [Scope]
     public class FileUploader
     {
         private FilesSettingsHelper FilesSettingsHelper { get; }
@@ -214,7 +214,7 @@ namespace ASC.Web.Files.Utils
                     {
                         var newFolder = ServiceProvider.GetService<Folder<T>>();
                         newFolder.Title = subFolderTitle;
-                        newFolder.ParentFolderID = folderId;
+                        newFolder.FolderID = folderId;
 
                         folderId = await folderDao.SaveFolder(newFolder);
 
@@ -329,37 +329,5 @@ namespace ASC.Web.Files.Utils
         }
 
         #endregion
-    }
-
-    public static class FileUploaderExtention
-    {
-        public static DIHelper AddFileUploaderService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FileUploader>())
-            {
-
-            return services
-                .AddChunkedUploadSessionHolderService()
-                .AddEntryManagerService()
-                .AddFileSecurityService()
-                .AddFilesLinkUtilityService()
-                .AddFilesMessageService()
-                .AddGlobalService()
-                .AddDaoFactoryService()
-                .AddFileConverterService()
-                .AddFileMarkerService()
-                .AddTenantStatisticsProviderService()
-                .AddTenantExtraService()
-                .AddUserManagerService()
-                .AddTenantManagerService()
-                .AddAuthContextService()
-                .AddSetupInfo()
-                .AddFileUtilityService()
-                .AddFilesSettingsHelperService()
-                ;
-        }
-
-            return services;
-    }
     }
 }

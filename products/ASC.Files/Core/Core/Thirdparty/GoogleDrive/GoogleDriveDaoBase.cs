@@ -50,7 +50,7 @@ namespace ASC.Files.Thirdparty.GoogleDrive
 {
     internal abstract class GoogleDriveDaoBase : ThirdPartyProviderDao<GoogleDriveProviderInfo>
     {
-        public override string Id { get => "drive"; }
+        protected override string Id { get => "drive"; }
 
         public GoogleDriveDaoBase(IServiceProvider serviceProvider, UserManager userManager, TenantManager tenantManager, TenantUtil tenantUtil, DbContextManager<FilesDbContext> dbContextManager, SetupInfo setupInfo, IOptionsMonitor<ILog> monitor, FileUtility fileUtility) : base(serviceProvider, userManager, tenantManager, tenantUtil, dbContextManager, setupInfo, monitor, fileUtility)
         {
@@ -138,7 +138,7 @@ namespace ASC.Files.Thirdparty.GoogleDrive
             var folder = GetFolder();
 
             folder.ID = MakeId(driveEntry);
-            folder.ParentFolderID = isRoot ? null : MakeId(GetParentDriveId(driveEntry));
+            folder.FolderID = isRoot ? null : MakeId(GetParentDriveId(driveEntry));
             folder.CreateOn = isRoot ? ProviderInfo.CreateOn : (driveEntry.CreatedTime ?? default);
             folder.ModifiedOn = isRoot ? ProviderInfo.CreateOn : (driveEntry.ModifiedTime ?? default);
 
@@ -227,7 +227,7 @@ namespace ASC.Files.Thirdparty.GoogleDrive
             }
         }
 
-        protected IEnumerable<string> GetChildren(object folderId)
+        protected override IEnumerable<string> GetChildren(string folderId)
         {
             return GetDriveEntries(folderId).Select(entry => MakeId(entry.Id));
         }

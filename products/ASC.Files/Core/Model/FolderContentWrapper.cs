@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 
 using ASC.Common;
 using ASC.Files.Core;
+using ASC.Files.Core.Security;
 using ASC.Web.Files.Services.WCFService;
 
 namespace ASC.Api.Documents
@@ -43,7 +44,7 @@ namespace ASC.Api.Documents
     {
         /// <summary>
         /// </summary>
-        public List<FileWrapper<T>> Files { get; set; }
+        public List<FileEntryWrapper> Files { get; set; }
 
         /// <summary>
         /// </summary>
@@ -88,7 +89,7 @@ namespace ASC.Api.Documents
             return new FolderContentWrapper<int>
             {
                 Current = FolderWrapper<int>.GetSample(),
-                Files = new List<FileWrapper<int>>(new[] { FileWrapper<int>.GetSample(), FileWrapper<int>.GetSample() }),
+                Files = new List<FileEntryWrapper>(new[] { FileWrapper<int>.GetSample(), FileWrapper<int>.GetSample() }),
                 Folders = new List<FileEntryWrapper>(new[] { FolderWrapper<int>.GetSample(), FolderWrapper<int>.GetSample() }),
                 PathParts = new
                 {
@@ -103,24 +104,51 @@ namespace ASC.Api.Documents
         }
     }
 
+    [Scope]
     public class FolderContentWrapperHelper
     {
+        private FileSecurity FileSecurity { get; }
+        private IDaoFactory DaoFactory { get; }
         private FileWrapperHelper FileWrapperHelper { get; }
         private FolderWrapperHelper FolderWrapperHelper { get; }
 
         public FolderContentWrapperHelper(
+            FileSecurity fileSecurity,
+            IDaoFactory daoFactory,
             FileWrapperHelper fileWrapperHelper,
             FolderWrapperHelper folderWrapperHelper)
         {
+            FileSecurity = fileSecurity;
+            DaoFactory = daoFactory;
             FileWrapperHelper = fileWrapperHelper;
             FolderWrapperHelper = folderWrapperHelper;
         }
 
         public async Task<FolderContentWrapper<T>> Get<T>(DataWrapper<T> folderItems, int startIndex)
         {
+            var foldersIntWithRights = GetFoldersIntWithRights<int>();
+            var foldersStringWithRights = GetFoldersIntWithRights<string>();
+
             var result = new FolderContentWrapper<T>
             {
-                Files = (await Task.WhenAll(folderItems.Entries.OfType<File<T>>().Select(FileWrapperHelper.Get))).ToList(),
+                Files = (await Task.WhenAll(folderItems.Entries
+                .Where(r => r.FileEntryType == FileEntryType.File)
+                .Select(async r =>
+                {
+                    FileEntryWrapper wrapper = null;
+                    if (r is File<int> fol1)
+                    {
+                        wrapper = await FileWrapperHelper.Get(fol1, await foldersIntWithRights);
+                    }
+                    if (r is File<string> fol2)
+                    {
+                        wrapper = await FileWrapperHelper.Get(fol2, await foldersStringWithRights);
+                    }
+
+                    return wrapper;
+                }
+                )))
+                .ToList(),
                 Folders = (await Task.WhenAll(folderItems.Entries
                 .Where(r => r.FileEntryType == FileEntryType.Folder)
                 .Select(async r =>
@@ -128,11 +156,11 @@ namespace ASC.Api.Documents
                     FileEntryWrapper wrapper = null;
                     if (r is Folder<int> fol1)
                     {
-                        wrapper = await FolderWrapperHelper.Get(fol1);
+                        wrapper = await FolderWrapperHelper.Get(fol1, await foldersIntWithRights);
                     }
                     if (r is Folder<string> fol2)
                     {
-                        wrapper = await FolderWrapperHelper.Get(fol2);
+                        wrapper = await FolderWrapperHelper.Get(fol2, await foldersStringWithRights);
                     }
 
                     return wrapper;
@@ -148,23 +176,16 @@ namespace ASC.Api.Documents
             result.New = folderItems.New;
 
             return result;
-        }
-    }
-    public static class FolderContentWrapperHelperExtention
-    {
-        public static DIHelper AddFolderContentWrapperHelperService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FolderContentWrapperHelper>())
+
+
+            async Task<List<Tuple<FileEntry<T1>, bool>>> GetFoldersIntWithRights<T1>()
             {
-            return services
-                .AddFileWrapperHelperService()
-                .AddFolderWrapperHelperService();
+                var folderDao = DaoFactory.GetFolderDao<T1>();
+                var folders = await folderDao.GetFolders(folderItems.Entries.OfType<FileEntry<T1>>().Select(r => r.FolderID).ToList());
+                return await FileSecurity.CanRead(folders);
+            }
         }
-
-            return services;
     }
-    }
-
 
     public class FileEntryWrapperConverter : JsonConverter<FileEntryWrapper>
     {

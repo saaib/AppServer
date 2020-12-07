@@ -25,6 +25,7 @@
 
 
 using System;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 using ASC.Files.Core;
@@ -33,9 +34,10 @@ using ASC.Files.Core.Security;
 
 namespace ASC.Web.Files.Services.WCFService
 {
-    public class AceCollection
+    public class AceCollection<T>
     {
-        public ItemList<string> Entries { get; set; }
+        public IEnumerable<T> Files { get; set; }
+        public IEnumerable<T> Folders { get; set; }
 
         public ItemList<AceWrapper> Aces { get; set; }
 
@@ -86,8 +88,8 @@ namespace ASC.Web.Files.Services.WCFService
                 case FileShare.ReadWrite:
                     permission = FilesCommonResource.AceStatusEnum_ReadWrite;
                     break;
-                case FileShare.Restrict:
-                    permission = FilesCommonResource.AceStatusEnum_Restrict;
+                case FileShare.CustomFilter:
+                    permission = FilesCommonResource.AceStatusEnum_CustomFilter;
                     break;
                 case FileShare.Review:
                     permission = FilesCommonResource.AceStatusEnum_Review;
@@ -97,6 +99,9 @@ namespace ASC.Web.Files.Services.WCFService
                     break;
                 case FileShare.Comment:
                     permission = FilesCommonResource.AceStatusEnum_Comment;
+                    break;
+                case FileShare.Restrict:
+                    permission = FilesCommonResource.AceStatusEnum_Restrict;
                     break;
             }
 

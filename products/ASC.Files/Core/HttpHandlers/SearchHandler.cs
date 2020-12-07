@@ -66,7 +66,6 @@ namespace ASC.Web.Files.Configuration
 
         private FileSecurity FileSecurity { get; }
         private IDaoFactory DaoFactory { get; }
-        private Global Global { get; }
         private EntryManager EntryManager { get; }
         private GlobalFolderHelper GlobalFolderHelper { get; }
         private FilesSettingsHelper FilesSettingsHelper { get; }
@@ -78,7 +77,6 @@ namespace ASC.Web.Files.Configuration
         public SearchHandler(
             FileSecurity fileSecurity,
             IDaoFactory daoFactory,
-            Global global,
             EntryManager entryManager,
             GlobalFolderHelper globalFolderHelper,
             FilesSettingsHelper filesSettingsHelper,
@@ -89,7 +87,6 @@ namespace ASC.Web.Files.Configuration
         {
             FileSecurity = fileSecurity;
             DaoFactory = daoFactory;
-            Global = global;
             EntryManager = entryManager;
             GlobalFolderHelper = globalFolderHelper;
             FilesSettingsHelper = filesSettingsHelper;
@@ -109,12 +106,20 @@ namespace ASC.Web.Files.Configuration
         public async Task<IEnumerable<Folder<int>>> SearchFolders(string text)
         {
             var security = FileSecurity;
-            IEnumerable<Folder<int>> result;
+            List<Folder<int>> result = new List<Folder<int>>();
             var folderDao = DaoFactory.GetFolderDao<int>();
-            result = (await folderDao.Search(text)).Where(r => security.CanRead(r).Result); //TODO: Result
+            var data = (await folderDao.SearchFolders(text)).ToList();
+            
+            foreach(var d in data)
+            {
+                if(await security.CanRead(d))
+                {
+                    result.Add(d);
+                }
+            }
 
-            if (ThirdpartyConfiguration.SupportInclusion
-                && (Global.IsAdministrator || FilesSettingsHelper.EnableThirdParty))
+            if (ThirdpartyConfiguration.SupportInclusion(DaoFactory)
+                && FilesSettingsHelper.EnableThirdParty)
             {
                 var id = await GlobalFolderHelper.FolderMy;
                 if (!Equals(id, 0))
@@ -144,7 +149,7 @@ namespace ASC.Web.Files.Configuration
                                 Additional = new Dictionary<string, object>
                                 {
                                     { "Author", r.CreateByString.HtmlEncode() },
-                                    { "Path", FolderPathBuilder(await EntryManager.GetBreadCrumbs(r.FolderID, folderDao)) },
+                                    { "Path", FolderPathBuilder<int>(await EntryManager.GetBreadCrumbs(r.FolderID, folderDao)) },
                                     { "Size", FileSizeComment.FilesSizeToString(r.ContentLength) }
                                 }
                             }
@@ -156,12 +161,12 @@ namespace ASC.Web.Files.Configuration
                         {
                             Name = f.Title ?? string.Empty,
                             Description = string.Empty,
-                            URL = PathProvider.GetFolderUrl(f),
+                            URL = await PathProvider.GetFolderUrl(f),
                             Date = f.ModifiedOn,
                             Additional = new Dictionary<string, object>
                                     {
                                             { "Author", f.CreateByString.HtmlEncode() },
-                                            { "Path", FolderPathBuilder(await EntryManager.GetBreadCrumbs(f.ID, folderDao)) },
+                                            { "Path", FolderPathBuilder<int>(await EntryManager.GetBreadCrumbs(f.ID, folderDao)) },
                                             { "IsFolder", true }
                                     }
                         }));
@@ -169,7 +174,7 @@ namespace ASC.Web.Files.Configuration
             return result.Concat(resultFolder).ToArray();
         }
 
-        private static string FolderPathBuilder<T>(IEnumerable<Folder<T>> folders)
+        private static string FolderPathBuilder<T>(IEnumerable<FileEntry> folders)
         {
             var titles = folders.Select(f => f.Title).ToList();
             const string separator = " \\ ";

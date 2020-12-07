@@ -28,6 +28,7 @@ using System;
 using System.Diagnostics;
 using System.Text.Json.Serialization;
 
+using ASC.Common;
 using ASC.Web.Core.Files;
 using ASC.Web.Files.Classes;
 using ASC.Web.Files.Utils;
@@ -48,9 +49,14 @@ namespace ASC.Files.Core
 
         IsOriginal = 0x8,
 
-        IsEditingAlone = 0x10
+        IsEditingAlone = 0x10,
+
+        IsFavorite = 0x20,
+
+        IsTemplate = 0x40
     }
 
+    [Transient]
     [Serializable]
     [DebuggerDisplay("{Title} ({ID} v{Version})")]
     public class File<T> : FileEntry<T>
@@ -70,8 +76,6 @@ namespace ASC.Files.Core
             FileUtility = fileUtility;
             FileConverter = fileConverter;
         }
-
-        public T FolderID { get; set; }
 
         public int Version { get; set; }
 
@@ -174,6 +178,30 @@ namespace ASC.Files.Core
             }
         }
 
+        public bool IsFavorite
+        {
+            get { return (_status & FileStatus.IsFavorite) == FileStatus.IsFavorite; }
+            set
+            {
+                if (value)
+                    _status |= FileStatus.IsFavorite;
+                else
+                    _status ^= FileStatus.IsFavorite;
+            }
+        }
+
+        public bool IsTemplate
+        {
+            get { return (_status & FileStatus.IsTemplate) == FileStatus.IsTemplate; }
+            set
+            {
+                if (value)
+                    _status |= FileStatus.IsTemplate;
+                else
+                    _status ^= FileStatus.IsTemplate;
+            }
+        }
+
         public bool Encrypted { get; set; }
 
         public ForcesaveType Forcesave { get; set; }
@@ -192,16 +220,13 @@ namespace ASC.Files.Core
                 if (string.IsNullOrEmpty(ConvertedType)) return FileUtility.GetFileExtension(Title);
 
                 var curFileType = FileUtility.GetFileTypeByFileName(Title);
-                switch (curFileType)
+                return curFileType switch
                 {
-                    case FileType.Image:
-                        return ConvertedType.Trim('.') == "zip" ? ".pptt" : ConvertedType;
-                    case FileType.Spreadsheet:
-                        return ConvertedType.Trim('.') != "xlsx" ? ".xlst" : ConvertedType;
-                    case FileType.Document:
-                        return ConvertedType.Trim('.') == "zip" ? ".doct" : ConvertedType;
-                }
-                return ConvertedType;
+                    FileType.Image => ConvertedType.Trim('.') == "zip" ? ".pptt" : ConvertedType,
+                    FileType.Spreadsheet => ConvertedType.Trim('.') != "xlsx" ? ".xlst" : ConvertedType,
+                    FileType.Document => ConvertedType.Trim('.') == "zip" ? ".doct" : ConvertedType,
+                    _ => ConvertedType,
+                };
             }
         }
 
@@ -215,19 +240,5 @@ namespace ASC.Files.Core
 
         [NonSerialized]
         private readonly FileConverter FileConverter;
-
-        private T _folderIdDisplay;
-
-        [JsonPropertyName("folder_id")]
-        public override T FolderIdDisplay
-        {
-            get
-            {
-                if (_folderIdDisplay != null) return _folderIdDisplay;
-
-                return FolderID;
-            }
-            set { _folderIdDisplay = value; }
-        }
     }
 }

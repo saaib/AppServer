@@ -35,10 +35,11 @@ using ASC.Files.Core.Resources;
 using ASC.Web.Core;
 using ASC.Web.Core.PublicResources;
 using ASC.Web.Files.Classes;
-using ASC.Web.Files.Core.Search;
+using ASC.Web.Studio.Core.Notify;
 
 namespace ASC.Web.Files.Configuration
 {
+    [Scope]
     public class ProductEntryPoint : Product
     {
         internal const string ProductPath = "/products/files/";
@@ -47,7 +48,7 @@ namespace ASC.Web.Files.Configuration
         private CoreBaseSettings CoreBaseSettings { get; }
         private AuthContext AuthContext { get; }
         private UserManager UserManager { get; }
-        private IServiceProvider ServiceProvider { get; }
+        public NotifyConfiguration NotifyConfiguration { get; }
 
         //public SubscriptionManager SubscriptionManager { get; }
 
@@ -60,7 +61,9 @@ namespace ASC.Web.Files.Configuration
             //            FilesSpaceUsageStatManager filesSpaceUsageStatManager,
             CoreBaseSettings coreBaseSettings,
             AuthContext authContext,
-            UserManager userManager
+            UserManager userManager,
+            IServiceProvider serviceProvider,
+            NotifyConfiguration notifyConfiguration
             //            SubscriptionManager subscriptionManager
             )
         {
@@ -68,6 +71,7 @@ namespace ASC.Web.Files.Configuration
             CoreBaseSettings = coreBaseSettings;
             AuthContext = authContext;
             UserManager = userManager;
+            NotifyConfiguration = notifyConfiguration;
             //SubscriptionManager = subscriptionManager;
         }
 
@@ -101,6 +105,10 @@ namespace ASC.Web.Files.Configuration
                     CanNotBeDisabled = true,
                 };
 
+            if (NotifyConfiguration != null)
+            {
+                NotifyConfiguration.Configure();
+            }
             //SearchHandlerManager.Registry(new SearchHandler());
         }
 
@@ -167,25 +175,6 @@ namespace ASC.Web.Files.Configuration
         public override string ApiURL
         {
             get => "";
-        }
-    }
-    public static class ProductEntryPointExtention
-    {
-        public static DIHelper AddProductEntryPointService(this DIHelper services)
-        {
-            if (services.TryAddScoped<ProductEntryPoint>())
-            {
-                return services
-                    .AddFilesSpaceUsageStatManagerService()
-                    .AddCoreBaseSettingsService()
-                    .AddAuthContextService()
-                    .AddUserManagerService()
-                    .AddGlobalService()
-                    .AddFilesSubscriptionManagerService()
-                    .AddFactoryIndexerFileService();
-            }
-
-            return services;
         }
     }
 }

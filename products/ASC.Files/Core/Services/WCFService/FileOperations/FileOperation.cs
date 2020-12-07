@@ -33,6 +33,7 @@ using System.Security.Principal;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Common.Logging;
 using ASC.Common.Security.Authentication;
 using ASC.Common.Security.Authorizing;
@@ -108,6 +109,7 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
 
         public abstract void RunJob(DistributedTask _, CancellationToken cancellationToken);
         protected abstract Task Do(IServiceScope serviceScope);
+
     }
 
     internal class ComposeFileOperation<T1, T2> : FileOperation
@@ -268,6 +270,9 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             CurrentTenant = fileOperationData.Tenant;
 
             using var scope = ServiceProvider.CreateScope();
+            var tenantManager = scope.ServiceProvider.GetService<TenantManager>();
+            tenantManager.SetCurrentTenant(CurrentTenant);
+
             var daoFactory = scope.ServiceProvider.GetService<IDaoFactory>();
             FolderDao = daoFactory.GetFolderDao<TId>();
 
@@ -283,11 +288,9 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 CancellationToken = cancellationToken;
 
                 using var scope = ServiceProvider.CreateScope();
-                var tenantManager = scope.ServiceProvider.GetService<TenantManager>();
+                var scopeClass = scope.ServiceProvider.GetService<FileOperationScope>();
+                var (tenantManager, daoFactory, fileSecurity, options) = scopeClass;
                 tenantManager.SetCurrentTenant(CurrentTenant);
-                var daoFactory = scope.ServiceProvider.GetService<IDaoFactory>();
-                var fileSecurity = scope.ServiceProvider.GetService<FileSecurity>();
-                var logger = scope.ServiceProvider.GetService<IOptionsMonitor<ILog>>().CurrentValue;
 
 
                 Thread.CurrentPrincipal = principal;
@@ -300,7 +303,7 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 ProviderDao = daoFactory.ProviderDao;
                 FilesSecurity = fileSecurity;
 
-                Logger = logger;
+                Logger = options.CurrentValue;
 
                 Do(scope);
             }
@@ -390,6 +393,31 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
         {
             FillDistributedTask();
             TaskInfo.PublishChanges();
+        }
+    }
+
+    [Scope]
+    public class FileOperationScope
+    {
+        private TenantManager TenantManager { get; }
+        private IDaoFactory DaoFactory { get; }
+        private FileSecurity FileSecurity { get; }
+        private IOptionsMonitor<ILog> Options { get; }
+
+        public FileOperationScope(TenantManager tenantManager, IDaoFactory daoFactory, FileSecurity fileSecurity, IOptionsMonitor<ILog> options)
+        {
+            TenantManager = tenantManager;
+            DaoFactory = daoFactory;
+            FileSecurity = fileSecurity;
+            Options = options;
+        }
+
+        public void Deconstruct(out TenantManager tenantManager, out IDaoFactory daoFactory, out FileSecurity fileSecurity, out IOptionsMonitor<ILog> optionsMonitor)
+        {
+            tenantManager = TenantManager;
+            daoFactory = DaoFactory;
+            fileSecurity = FileSecurity;
+            optionsMonitor = Options;
         }
     }
 }

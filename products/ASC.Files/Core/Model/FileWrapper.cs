@@ -25,7 +25,9 @@
 
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Threading.Tasks;
 
 using ASC.Api.Core;
@@ -33,7 +35,6 @@ using ASC.Api.Utils;
 using ASC.Common;
 using ASC.Core;
 using ASC.Files.Core;
-using ASC.Files.Core.Data;
 using ASC.Files.Core.Security;
 using ASC.Web.Api.Models;
 using ASC.Web.Core.Files;
@@ -140,6 +141,8 @@ namespace ASC.Api.Documents
             };
         }
     }
+
+    [Scope]
     public class FileWrapperHelper : FileEntryWrapperHelper
     {
         private AuthContext AuthContext { get; }
@@ -171,25 +174,46 @@ namespace ASC.Api.Documents
             FileUtility = fileUtility;
         }
 
-        public async Task<FileWrapper<T>> Get<T>(File<T> file)
+        public async Task<FileWrapper<T>> Get<T>(File<T> file, List<Tuple<FileEntry<T>, bool>> folders = null)
         {
-            var result = Get<FileWrapper<T>, T>(file);
+            var result = GetFileWrapper(file);
+
             result.FolderId = file.FolderID;
             if (file.RootFolderType == FolderType.USER
                 && !Equals(file.RootFolderCreator, AuthContext.CurrentAccount.ID))
             {
                 result.RootFolderType = FolderType.SHARE;
                 var folderDao = DaoFactory.GetFolderDao<T>();
-                var parentFolder = await folderDao.GetFolder(file.FolderID);
-                if (!await FileSecurity.CanRead(parentFolder))
+                FileEntry<T> parentFolder;
+
+                if(folders != null)
+                {
+                    var folderWithRight = folders.FirstOrDefault(f => f.Item1.ID.Equals(file.FolderID));
+                    if (folderWithRight == null || !folderWithRight.Item2)
+                    {
+                        result.FolderId = await GlobalFolderHelper.GetFolderShare<T>();
+                    }
+                }
+                else
+                {
+                    parentFolder = await folderDao.GetFolder(file.FolderID);
+                    if (!await FileSecurity.CanRead(parentFolder))
                 {
                     result.FolderId = await GlobalFolderHelper.GetFolderShare<T>();
                 }
             }
+            }
+
+
+            return result;
+        }
+
+        private FileWrapper<T> GetFileWrapper<T>(File<T> file)
+        {
+            var result = Get<FileWrapper<T>, T>(file);
 
             result.FileExst = FileUtility.GetFileExtension(file.Title);
             result.FileType = FileUtility.GetFileTypeByExtention(result.FileExst);
-
             result.Version = file.Version;
             result.VersionGroup = file.VersionGroup;
             result.ContentLength = file.ContentLengthString;
@@ -213,26 +237,5 @@ namespace ASC.Api.Documents
 
             return result;
         }
-    }
-
-    public static class FileWrapperHelperExtention
-    {
-        public static DIHelper AddFileWrapperHelperService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FileWrapperHelper>())
-            {
-
-            return services
-                .AddFileEntryWrapperHelperService()
-                .AddAuthContextService()
-                .AddDaoFactoryService()
-                .AddFileSecurityService()
-                .AddGlobalFolderHelperService()
-                .AddFilesLinkUtilityService()
-                .AddFileUtilityService();
-        }
-
-            return services;
-    }
     }
 }

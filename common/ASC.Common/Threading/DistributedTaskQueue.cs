@@ -36,6 +36,7 @@ using ASC.Common.Caching;
 
 namespace ASC.Common.Threading
 {
+    [Singletone]
     public class DistributedTaskCacheNotify
     {
         public ConcurrentDictionary<string, CancellationTokenSource> Cancelations { get; }
@@ -93,7 +94,7 @@ namespace ASC.Common.Threading
 
     public class DistributedTaskQueue
     {
-        public static readonly string InstanceId;
+        public static readonly int InstanceId;
 
         private readonly string key;
         private readonly ICache cache;
@@ -104,7 +105,7 @@ namespace ASC.Common.Threading
 
         static DistributedTaskQueue()
         {
-            InstanceId = Process.GetCurrentProcess().Id.ToString();
+            InstanceId = Process.GetCurrentProcess().Id;
         }
 
 

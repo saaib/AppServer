@@ -25,6 +25,7 @@
 
 
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
@@ -45,7 +46,7 @@ namespace ASC.Files.Thirdparty.SharePoint
 {
     internal class SharePointDaoBase : ThirdPartyProviderDao<SharePointProviderInfo>
     {
-        public override string Id { get => "spoint"; }
+        protected override string Id { get => "spoint"; }
 
         public SharePointDaoBase(IServiceProvider serviceProvider, UserManager userManager, TenantManager tenantManager, TenantUtil tenantUtil, DbContextManager<FilesDbContext> dbContextManager, SetupInfo setupInfo, IOptionsMonitor<ILog> monitor, FileUtility fileUtility) : base(serviceProvider, userManager, tenantManager, tenantUtil, dbContextManager, setupInfo, monitor, fileUtility)
         {
@@ -86,8 +87,7 @@ namespace ASC.Files.Thirdparty.SharePoint
         {
             if (oldValue.Equals(newValue)) return;
 
-            using (var tx = FilesDbContext.Database.BeginTransaction())
-            {
+            using var tx = FilesDbContext.Database.BeginTransaction();
                 var oldIDs = Query(FilesDbContext.ThirdpartyIdMapping)
                     .Where(r => r.Id.StartsWith(oldValue))
                     .Select(r => r.Id)
@@ -136,7 +136,6 @@ namespace ASC.Files.Thirdparty.SharePoint
 
                 tx.Commit();
             }
-        }
 
         protected string MappingID(string id)
         {
@@ -147,5 +146,12 @@ namespace ASC.Files.Thirdparty.SharePoint
         {
             return path;
         }
+
+        protected override IEnumerable<string> GetChildren(string folderId)
+        {
+            var subFolders = ProviderInfo.GetFolderFolders(folderId).Select(x => ProviderInfo.MakeId(x.ServerRelativeUrl));
+            var files = ProviderInfo.GetFolderFiles(folderId).Select(x => ProviderInfo.MakeId(x.ServerRelativeUrl));
+            return subFolders.Concat(files);
+    }
     }
 }

@@ -34,12 +34,11 @@ using ASC.Common;
 using ASC.Core;
 using ASC.Files.Core;
 using ASC.Files.Core.Data;
-using ASC.Files.Core.Security;
 using ASC.Files.Core.Thirdparty;
-using ASC.Web.Files.Services.DocumentService;
 
 namespace ASC.Files.Thirdparty.ProviderDao
 {
+    [Scope]
     internal class ProviderFileDao : ProviderDaoBase, IFileDao<string>
     {
         public ProviderFileDao(
@@ -126,29 +125,7 @@ namespace ASC.Files.Thirdparty.ProviderDao
             return await fileDao.GetFileHistory(selector.ConvertId(fileId));
         }
 
-        public async Task<List<File<string>>> GetFiles(string[] fileIds)
-        {
-            var result = Enumerable.Empty<File<string>>();
-
-            foreach (var selector in GetSelectors())
-            {
-                var selectorLocal = selector;
-                var matchedIds = fileIds.Where(selectorLocal.IsMatch);
-
-                if (!matchedIds.Any()) continue;
-
-                foreach (var m in matchedIds.GroupBy(selectorLocal.GetIdCode))
-                {
-                    var fileDao = selectorLocal.GetFileDao(m.FirstOrDefault()); ;
-
-                    result = result.Concat((await fileDao.GetFiles(m.Select(selectorLocal.ConvertId).ToArray())).Where(r => r != null));
-                }
-            }
-
-            return result.ToList();
-        }
-
-        public async Task<List<File<string>>> GetFilesForShare(string[] fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
+        public async Task<List<File<string>>> GetFiles(IEnumerable<string> fileIds)
         {
             var result = Enumerable.Empty<File<string>>();
 
@@ -162,8 +139,28 @@ namespace ASC.Files.Thirdparty.ProviderDao
                 foreach (var m in matchedIds.GroupBy(selectorLocal.GetIdCode))
                 {
                     var fileDao = selectorLocal.GetFileDao(m.FirstOrDefault());
+                    result = result.Concat((await fileDao.GetFiles(m.Select(selectorLocal.ConvertId).ToList())).Where(r => r != null));
+                }
+            }
 
-                    result = result.Concat((await fileDao.GetFilesForShare(m.Select(selectorLocal.ConvertId).ToArray(), filterType, subjectGroup, subjectID, searchText, searchInContent))
+            return result.ToList();
+        }
+
+        public async Task<List<File<string>>> GetFilesFiltered(IEnumerable<string> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
+        {
+            var result = Enumerable.Empty<File<string>>();
+
+            foreach (var selector in GetSelectors())
+            {
+                var selectorLocal = selector;
+                var matchedIds = fileIds.Where(selectorLocal.IsMatch);
+
+                if (!matchedIds.Any()) continue;
+
+                foreach (var m in matchedIds.GroupBy(selectorLocal.GetIdCode))
+                {
+                    var fileDao = selectorLocal.GetFileDao(m.FirstOrDefault());
+                    result = result.Concat((await fileDao.GetFilesFiltered(m.Select(selectorLocal.ConvertId).ToList(), filterType, subjectGroup, subjectID, searchText, searchInContent))
                                                     .Where(r => r != null));
                 }
             }
@@ -461,81 +458,5 @@ namespace ASC.Files.Thirdparty.ProviderDao
         }
 
         #endregion
-
-        #region Only in TMFileDao
-
-        public void ReassignFiles(string[] fileIds, Guid newOwnerId)
-        {
-            throw new NotImplementedException();
         }
-
-        public Task<List<File<string>>> GetFiles(string[] parentIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Task<IEnumerable<File<string>>> Search(string text, bool bunch)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool IsExistOnStorage(File<string> file)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void SaveEditHistory(File<string> file, string changes, Stream differenceStream)
-        {
-            throw new NotImplementedException();
-        }
-
-        public List<EditHistory> GetEditHistory(DocumentServiceHelper documentServiceHelper, string fileId, int fileVersion)
-        {
-            throw new NotImplementedException();
-        }
-
-        public Stream GetDifferenceStream(File<string> file)
-        {
-            throw new NotImplementedException();
-        }
-
-        public bool ContainChanges(string fileId, int fileVersion)
-        {
-            throw new NotImplementedException();
-        }
-
-        public string GetUniqFilePath(File<string> file, string fileTitle)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<(File<int>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<int> GetTenantsWithFeeds(DateTime fromTime)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion
-    }
-
-    public static class ProviderFileDaoExtention
-    {
-        public static DIHelper AddProviderFileDaoService(this DIHelper services)
-        {
-            if (services.TryAddScoped<ProviderFileDao>())
-            {
-                services.TryAddScoped<File<string>>();
-            services.TryAddScoped<IFileDao<string>, ProviderFileDao>();
-
-            return services
-                .AddProviderDaoBaseService();
-        }
-
-            return services;
-    }
-    }
 }

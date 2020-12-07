@@ -42,6 +42,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace ASC.Data.Backup
 {
+    [Singletone(Additional = typeof(NotifyHelperExtension))]
     public class NotifyHelper
     {
         private IServiceProvider ServiceProvider { get; }
@@ -69,11 +70,9 @@ namespace ASC.Data.Backup
         public void SendAboutBackupCompleted(Guid userId)
         {
             using var scope = ServiceProvider.CreateScope();
-            var userManager = scope.ServiceProvider.GetService<UserManager>();
-            var studioNotifyHelper = scope.ServiceProvider.GetService<StudioNotifyHelper>();
-            var notifySource = scope.ServiceProvider.GetService<StudioNotifySource>();
-            var displayUserSettingsHelper = scope.ServiceProvider.GetService<DisplayUserSettingsHelper>();
-            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(notifySource, scope);
+            var scopeClass = scope.ServiceProvider.GetService<NotifyHelperScope>();
+            var (userManager, studioNotifyHelper, studioNotifySource, displayUserSettingsHelper) = scopeClass;
+            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(studioNotifySource, scope);
 
             client.SendNoticeToAsync(
                 Actions.BackupCreated,
@@ -85,11 +84,9 @@ namespace ASC.Data.Backup
         public void SendAboutRestoreStarted(Tenant tenant, bool notifyAllUsers)
         {
             using var scope = ServiceProvider.CreateScope();
-            var userManager = scope.ServiceProvider.GetService<UserManager>();
-            var studioNotifyHelper = scope.ServiceProvider.GetService<StudioNotifyHelper>();
-            var notifySource = scope.ServiceProvider.GetService<StudioNotifySource>();
-            var displayUserSettingsHelper = scope.ServiceProvider.GetService<DisplayUserSettingsHelper>();
-            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(notifySource, scope);
+            var scopeClass = scope.ServiceProvider.GetService<NotifyHelperScope>();
+            (var userManager, var studioNotifyHelper, var studioNotifySource, var displayUserSettingsHelper) = scopeClass;
+            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(studioNotifySource, scope);
 
             var owner = userManager.GetUsers(tenant.OwnerId);
             var users =
@@ -106,11 +103,9 @@ namespace ASC.Data.Backup
         public void SendAboutRestoreCompleted(Tenant tenant, bool notifyAllUsers)
         {
             using var scope = ServiceProvider.CreateScope();
-            var userManager = scope.ServiceProvider.GetService<UserManager>();
-            var studioNotifyHelper = scope.ServiceProvider.GetService<StudioNotifyHelper>();
-            var notifySource = scope.ServiceProvider.GetService<StudioNotifySource>();
-            var displayUserSettingsHelper = scope.ServiceProvider.GetService<DisplayUserSettingsHelper>();
-            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(notifySource, scope);
+            var scopeClass = scope.ServiceProvider.GetService<NotifyHelperScope>();
+            var (userManager, studioNotifyHelper, studioNotifySource, displayUserSettingsHelper) = scopeClass;
+            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(studioNotifySource, scope);
 
             var owner = userManager.GetUsers(tenant.OwnerId);
 
@@ -129,10 +124,9 @@ namespace ASC.Data.Backup
         private void MigrationNotify(Tenant tenant, INotifyAction action, string region, string url, bool notify)
         {
             using var scope = ServiceProvider.CreateScope();
-            var userManager = scope.ServiceProvider.GetService<UserManager>();
-            var studioNotifyHelper = scope.ServiceProvider.GetService<StudioNotifyHelper>();
-            var notifySource = scope.ServiceProvider.GetService<StudioNotifySource>();
-            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(notifySource, scope);
+            var scopeClass = scope.ServiceProvider.GetService<NotifyHelperScope>();
+            var (userManager, studioNotifyHelper, studioNotifySource, _) = scopeClass;
+            var client = WorkContext.NotifyContext.NotifyService.RegisterClient(studioNotifySource, scope);
 
             var users = userManager.GetUsers()
                 .Where(u => notify ? u.ActivationStatus.HasFlag(EmployeeActivationStatus.Activated) : u.IsOwner(tenant))
@@ -150,18 +144,37 @@ namespace ASC.Data.Backup
             }
         }
     }
-    public static class NotifyHelperExtension
-    {
-        public static DIHelper AddNotifyHelperService(this DIHelper services)
-        {
-            services.TryAddSingleton<NotifyHelper>();
 
-            return services
-                .AddNotifyConfiguration()
-                .AddStudioNotifySourceService()
-                .AddUserManagerService()
-                .AddStudioNotifyHelperService()
-                .AddDisplayUserSettingsService();
+    [Scope]
+    public class NotifyHelperScope
+    {
+        private UserManager UserManager { get; }
+        private StudioNotifyHelper StudioNotifyHelper { get; }
+        private StudioNotifySource StudioNotifySource { get; }
+        private DisplayUserSettingsHelper DisplayUserSettingsHelper { get; }
+
+        public NotifyHelperScope(UserManager userManager, StudioNotifyHelper studioNotifyHelper, StudioNotifySource studioNotifySource, DisplayUserSettingsHelper displayUserSettingsHelper)
+        {
+            UserManager = userManager;
+            StudioNotifyHelper = studioNotifyHelper;
+            StudioNotifySource = studioNotifySource;
+            DisplayUserSettingsHelper = displayUserSettingsHelper;
+        }
+
+        public void Deconstruct(out UserManager userManager, out StudioNotifyHelper studioNotifyHelper, out StudioNotifySource studioNotifySource, out DisplayUserSettingsHelper displayUserSettingsHelper)
+        {
+            userManager = UserManager;
+            studioNotifyHelper = StudioNotifyHelper;
+            studioNotifySource = StudioNotifySource;
+            displayUserSettingsHelper = DisplayUserSettingsHelper;
+        }
+    }
+
+    public class NotifyHelperExtension
+    {
+        public static void Register(DIHelper services)
+        {
+            services.TryAdd<NotifyHelperScope>();
         }
     }
 }

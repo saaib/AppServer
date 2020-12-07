@@ -30,6 +30,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Core.Tenants;
 using ASC.Files.Core;
 using ASC.Files.Core.Resources;
@@ -125,9 +126,8 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
 
         private async Task DeleteFolders(IEnumerable<T> folderIds, IServiceScope scope)
         {
-            var fileMarker = scope.ServiceProvider.GetService<FileMarker>();
-            var filesMessageService = scope.ServiceProvider.GetService<FilesMessageService>();
-
+            var scopeClass = scope.ServiceProvider.GetService<FileDeleteOperationScope>();
+            var (fileMarker, filesMessageService) = scopeClass;
             foreach (var folderId in folderIds)
             {
                 CancellationToken.ThrowIfCancellationRequested();
@@ -211,9 +211,8 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
 
         private async Task DeleteFiles(IEnumerable<T> fileIds, IServiceScope scope)
         {
-            var fileMarker = scope.ServiceProvider.GetService<FileMarker>();
-            var filesMessageService = scope.ServiceProvider.GetService<FilesMessageService>();
-
+            var scopeClass = scope.ServiceProvider.GetService<FileDeleteOperationScope>();
+            var (fileMarker, filesMessageService) = scopeClass;
             foreach (var fileId in fileIds)
             {
                 CancellationToken.ThrowIfCancellationRequested();
@@ -278,6 +277,25 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 }
             }
             return null;
+        }
+    }
+
+    [Scope]
+    public class FileDeleteOperationScope
+    {
+        private FileMarker FileMarker { get; }
+        private FilesMessageService FilesMessageService { get; }
+
+        public FileDeleteOperationScope(FileMarker fileMarker, FilesMessageService filesMessageService)
+        {
+            FileMarker = fileMarker;
+            FilesMessageService = filesMessageService;
+        }
+
+        public void Deconstruct(out FileMarker fileMarker, out FilesMessageService filesMessageService)
+        {
+            fileMarker = FileMarker;
+            filesMessageService = FilesMessageService;
         }
     }
 }

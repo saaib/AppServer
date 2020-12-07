@@ -37,7 +37,6 @@ using ASC.Core.Common.EF;
 using ASC.Core.Tenants;
 using ASC.Files.Core;
 using ASC.Files.Core.EF;
-using ASC.Files.Core.Security;
 using ASC.Files.Core.Thirdparty;
 using ASC.Web.Core.Files;
 using ASC.Web.Studio.Core;
@@ -47,6 +46,7 @@ using Microsoft.Extensions.Options;
 
 namespace ASC.Files.Thirdparty.GoogleDrive
 {
+    [Scope]
     internal class GoogleDriveFolderDao : GoogleDriveDaoBase, IFolderDao<string>
     {
         private CrossDao CrossDao { get; }
@@ -123,29 +123,18 @@ namespace ASC.Files.Thirdparty.GoogleDrive
 
             if (orderBy == null) orderBy = new OrderBy(SortedByType.DateAndTime, false);
 
-            switch (orderBy.SortedBy)
+            folders = orderBy.SortedBy switch
             {
-                case SortedByType.Author:
-                    folders = orderBy.IsAsc ? folders.OrderBy(x => x.CreateBy) : folders.OrderByDescending(x => x.CreateBy);
-                    break;
-                case SortedByType.AZ:
-                    folders = orderBy.IsAsc ? folders.OrderBy(x => x.Title) : folders.OrderByDescending(x => x.Title);
-                    break;
-                case SortedByType.DateAndTime:
-                    folders = orderBy.IsAsc ? folders.OrderBy(x => x.ModifiedOn) : folders.OrderByDescending(x => x.ModifiedOn);
-                    break;
-                case SortedByType.DateAndTimeCreation:
-                    folders = orderBy.IsAsc ? folders.OrderBy(x => x.CreateOn) : folders.OrderByDescending(x => x.CreateOn);
-                    break;
-                default:
-                    folders = orderBy.IsAsc ? folders.OrderBy(x => x.Title) : folders.OrderByDescending(x => x.Title);
-                    break;
-            }
-
+                SortedByType.Author => orderBy.IsAsc ? folders.OrderBy(x => x.CreateBy) : folders.OrderByDescending(x => x.CreateBy),
+                SortedByType.AZ => orderBy.IsAsc ? folders.OrderBy(x => x.Title) : folders.OrderByDescending(x => x.Title),
+                SortedByType.DateAndTime => orderBy.IsAsc ? folders.OrderBy(x => x.ModifiedOn) : folders.OrderByDescending(x => x.ModifiedOn),
+                SortedByType.DateAndTimeCreation => orderBy.IsAsc ? folders.OrderBy(x => x.CreateOn) : folders.OrderByDescending(x => x.CreateOn),
+                _ => orderBy.IsAsc ? folders.OrderBy(x => x.Title) : folders.OrderByDescending(x => x.Title),
+            };
             return folders.ToList();
         }
 
-        public Task<List<Folder<string>>> GetFolders(string[] folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)
+        public Task<List<Folder<string>>> GetFolders(IEnumerable<string> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)
         {
             if (filterType == FilterType.FilesOnly || filterType == FilterType.ByExtension
                 || filterType == FilterType.DocumentsOnly || filterType == FilterType.ImagesOnly
@@ -199,9 +188,9 @@ namespace ASC.Files.Thirdparty.GoogleDrive
                 return await RenameFolder(folder, folder.Title);
             }
 
-            if (folder.ParentFolderID != null)
+            if (folder.FolderID != null)
             {
-                var driveFolderId = MakeDriveId(folder.ParentFolderID);
+                var driveFolderId = MakeDriveId(folder.FolderID);
 
                 var driveFolder = ProviderInfo.Storage.InsertEntry(null, folder.Title, driveFolderId, true);
 
@@ -290,10 +279,10 @@ namespace ASC.Files.Thirdparty.GoogleDrive
         public Task<string> MoveFolder(string folderId, string toFolderId, CancellationToken? cancellationToken)
         {
             var driveFolder = GetDriveEntry(folderId);
-            if (driveFolder is ErrorDriveEntry) throw new Exception(((ErrorDriveEntry)driveFolder).Error);
+            if (driveFolder is ErrorDriveEntry errorDriveEntry) throw new Exception(errorDriveEntry.Error);
 
             var toDriveFolder = GetDriveEntry(toFolderId);
-            if (toDriveFolder is ErrorDriveEntry) throw new Exception(((ErrorDriveEntry)toDriveFolder).Error);
+            if (toDriveFolder is ErrorDriveEntry errorDriveEntry1) throw new Exception(errorDriveEntry1.Error);
 
             var fromFolderDriveId = GetParentDriveId(driveFolder);
 
@@ -338,10 +327,10 @@ namespace ASC.Files.Thirdparty.GoogleDrive
         public Task<Folder<string>> CopyFolder(string folderId, string toFolderId, CancellationToken? cancellationToken)
         {
             var driveFolder = GetDriveEntry(folderId);
-            if (driveFolder is ErrorDriveEntry) throw new Exception(((ErrorDriveEntry)driveFolder).Error);
+            if (driveFolder is ErrorDriveEntry errorDriveEntry) throw new Exception(errorDriveEntry.Error);
 
             var toDriveFolder = GetDriveEntry(toFolderId);
-            if (toDriveFolder is ErrorDriveEntry) throw new Exception(((ErrorDriveEntry)toDriveFolder).Error);
+            if (toDriveFolder is ErrorDriveEntry errorDriveEntry1) throw new Exception(errorDriveEntry1.Error);
 
             var newDriveFolder = ProviderInfo.Storage.InsertEntry(null, driveFolder.Name, toDriveFolder.Id, true);
 
@@ -443,91 +432,6 @@ namespace ASC.Files.Thirdparty.GoogleDrive
             var storageMaxUploadSize = ProviderInfo.Storage.GetMaxUploadSize();
 
             return chunkedUpload ? storageMaxUploadSize : Math.Min(storageMaxUploadSize, SetupInfo.AvailableFileSize);
-        }
-
-        #region Only for TMFolderDao
-
-        public Task ReassignFolders(string[] folderIds, Guid newOwnerId)
-        {
-            return Task.CompletedTask;
-        }
-
-        public Task<IEnumerable<Folder<string>>> Search(string text, bool bunch)
-        {
-            return null;
-        }
-
-        public Task<string> GetFolderID(string module, string bunch, string data, bool createIfNotExists)
-        {
-            return null;
-        }
-
-        public Task<IEnumerable<string>> GetFolderIDs(string module, string bunch, IEnumerable<string> data, bool createIfNotExists)
-        {
-            return Task.FromResult((IEnumerable<string>)new List<string>());
-        }
-
-        public Task<string> GetFolderIDCommon(bool createIfNotExists)
-        {
-            return null;
-        }
-
-        public Task<string> GetFolderIDUser(bool createIfNotExists, Guid? userId)
-        {
-            return null;
-        }
-
-        public Task<string> GetFolderIDShare(bool createIfNotExists)
-        {
-            return null;
-        }
-
-        public Task<string> GetFolderIDTrash(bool createIfNotExists, Guid? userId)
-        {
-            return null;
-        }
-
-
-        public Task<string> GetFolderIDPhotos(bool createIfNotExists)
-        {
-            return null;
-        }
-
-        public Task<string> GetFolderIDProjects(bool createIfNotExists)
-        {
-            return null;
-        }
-
-        public Task<string> GetBunchObjectID(string folderID)
-        {
-            return null;
-        }
-
-        public Task<Dictionary<string, string>> GetBunchObjectIDs(List<string> folderIDs)
-        {
-            return null;
-        }
-
-        public IEnumerable<(Folder<string>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<string> GetTenantsWithFeeds(DateTime fromTime)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion
-    }
-
-    public static class GoogleDriveFolderDaoExtention
-    {
-        public static DIHelper AddGoogleDriveFolderDaoService(this DIHelper services)
-        {
-            services.TryAddScoped<GoogleDriveFolderDao>();
-
-            return services;
         }
     }
 }

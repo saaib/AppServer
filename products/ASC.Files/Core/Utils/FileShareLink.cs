@@ -39,6 +39,7 @@ using FileShare = ASC.Files.Core.Security.FileShare;
 
 namespace ASC.Web.Files.Utils
 {
+    [Scope]
     public class FileShareLink
     {
         private FileUtility FileUtility { get; }
@@ -94,7 +95,12 @@ namespace ASC.Web.Files.Utils
         public async Task<(bool, File<T>)> Check<T>(string doc, bool checkRead, IFileDao<T> fileDao)
         {
             var (fileShare, file) = await Check(doc, fileDao);
-            return ((!checkRead && (fileShare == FileShare.ReadWrite || fileShare == FileShare.Review || fileShare == FileShare.FillForms || fileShare == FileShare.Comment))
+            return ((!checkRead
+                    && (fileShare == FileShare.ReadWrite
+                        || fileShare == FileShare.CustomFilter
+                        || fileShare == FileShare.Review
+                        || fileShare == FileShare.FillForms
+                        || fileShare == FileShare.Comment))
                 || (checkRead && fileShare != FileShare.Restrict), file);
         }
 
@@ -107,28 +113,12 @@ namespace ASC.Web.Files.Utils
 
             var filesSecurity = FileSecurity;
             if (await filesSecurity.CanEdit(file, FileConstant.ShareLinkId)) return (FileShare.ReadWrite, file);
+            if (await filesSecurity.CanCustomFilterEdit(file, FileConstant.ShareLinkId)) return (FileShare.CustomFilter, file);
             if (await filesSecurity.CanReview(file, FileConstant.ShareLinkId)) return (FileShare.Review, file);
             if (await filesSecurity.CanFillForms(file, FileConstant.ShareLinkId)) return (FileShare.FillForms, file);
             if (await filesSecurity.CanComment(file, FileConstant.ShareLinkId)) return (FileShare.Comment, file);
             if (await filesSecurity.CanRead(file, FileConstant.ShareLinkId)) return (FileShare.Read, file);
             return (FileShare.Restrict, file);
         }
-    }
-    public static class FileShareLinkExtension
-    {
-        public static DIHelper AddFileShareLinkService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FileShareLink>())
-            {
-            return services
-                .AddFilesLinkUtilityService()
-                .AddFileUtilityService()
-                .AddBaseCommonLinkUtilityService()
-                .AddGlobalService()
-                .AddFileSecurityService();
-        }
-
-            return services;
-    }
     }
 }

@@ -28,8 +28,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using ASC.Common;
+
 namespace ASC.Files.Core.Security
 {
+    [Scope(typeof(FileSecurity))]
     public interface IFileSecurity
     {
         Task<bool> CanRead<T>(FileEntry<T> entry, Guid userId);
@@ -37,6 +40,8 @@ namespace ASC.Files.Core.Security
         Task<bool> CanComment<T>(FileEntry<T> entry, Guid userId);
 
         Task<bool> CanReview<T>(FileEntry<T> entry, Guid userId);
+
+        Task<bool> CanCustomFilterEdit<T>(FileEntry<T> entry, Guid userId);
 
         Task<bool> CanFillForms<T>(FileEntry<T> entry, Guid userId);
 

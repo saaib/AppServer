@@ -51,7 +51,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
 {
     internal abstract class SharpBoxDaoBase : ThirdPartyProviderDao<SharpBoxProviderInfo>
     {
-        public override string Id { get => "sbox"; }
+        protected override string Id { get => "sbox"; }
 
         public SharpBoxDaoBase(IServiceProvider serviceProvider, UserManager userManager, TenantManager tenantManager, TenantUtil tenantUtil, DbContextManager<FilesDbContext> dbContextManager, SetupInfo setupInfo, IOptionsMonitor<ILog> monitor, FileUtility fileUtility) : base(serviceProvider, userManager, tenantManager, tenantUtil, dbContextManager, setupInfo, monitor, fileUtility)
         {
@@ -161,8 +161,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
         {
             if (oldValue.Equals(newValue)) return;
 
-            using (var tx = FilesDbContext.Database.BeginTransaction())
-            {
+            using var tx = FilesDbContext.Database.BeginTransaction();
                 var oldIDs = Query(FilesDbContext.ThirdpartyIdMapping)
                     .Where(r => r.Id.StartsWith(oldValue))
                     .Select(r => r.Id)
@@ -211,7 +210,6 @@ namespace ASC.Files.Thirdparty.Sharpbox
 
                 tx.Commit();
             }
-        }
 
         protected string MakePath(object entryId)
         {
@@ -284,7 +282,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
             var folder = GetFolder();
 
             folder.ID = MakeId(fsEntry);
-            folder.ParentFolderID = isRoot ? null : MakeId(fsEntry.Parent);
+            folder.FolderID = isRoot ? null : MakeId(fsEntry.Parent);
             folder.CreateOn = isRoot ? ProviderInfo.CreateOn : fsEntry.Modified;
             folder.ModifiedOn = isRoot ? ProviderInfo.CreateOn : fsEntry.Modified;
             folder.RootFolderId = MakeId(RootFolder());
@@ -452,6 +450,13 @@ namespace ASC.Files.Thirdparty.Sharpbox
                 requestTitle = re.Replace(requestTitle, MatchEvaluator);
             }
             return requestTitle;
+        }
+
+        protected override IEnumerable<string> GetChildren(string folderId)
+        {
+            var subFolders = GetFolderSubfolders(folderId).Select(x => MakeId(x));
+            var files = GetFolderFiles(folderId).Select(x => MakeId(x));
+            return subFolders.Concat(files);
         }
 
         private static string MatchEvaluator(Match match)

@@ -42,6 +42,7 @@ using ASC.Web.Studio.Utility;
 
 namespace ASC.Web.Files
 {
+    [Scope]
     public class FilesSpaceUsageStatManager : SpaceUsageStatManager
     {
         private ASC.Files.Core.EF.FilesDbContext FilesDbContext { get; }
@@ -108,7 +109,7 @@ namespace ASC.Web.Files
                     {
                         item.Name = FilesUCResource.CorporateFiles;
                         item.ImgUrl = PathProvider.GetImagePath("corporatefiles_big.png");
-                        item.Url = PathProvider.GetFolderUrl(GlobalFolderHelper.FolderCommon.Result);
+                        item.Url = PathProvider.GetFolderUrlById(GlobalFolderHelper.FolderCommon.Result).Result;
                     }
                     else
                     {
@@ -125,6 +126,7 @@ namespace ASC.Web.Files
         }
     }
 
+    [Scope]
     public class FilesUserSpaceUsage : IUserSpaceUsage
     {
         private ASC.Files.Core.EF.FilesDbContext FilesDbContext { get; }
@@ -152,37 +154,5 @@ namespace ASC.Web.Files
                 .Select(r => r.Sum(f => f.file.ContentLength))
                 .FirstOrDefault();
         }
-    }
-
-    public static class FilesSpaceUsageStatManagerExtention
-    {
-        public static DIHelper AddFilesSpaceUsageStatManagerService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FilesSpaceUsageStatManager>())
-            {
-            return services
-                .AddTenantManagerService()
-                .AddUserManagerService()
-                .AddUserPhotoManagerService()
-                .AddDisplayUserSettingsService()
-                .AddCommonLinkUtilityService()
-                .AddFilesDbContextService()
-                .AddPathProviderService();
-        }
-
-            return services;
-        }
-
-        public static DIHelper AddFilesUserSpaceUsageService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FilesUserSpaceUsage>())
-            {
-            return services
-                .AddTenantManagerService()
-                .AddFilesDbContextService();
-        }
-
-            return services;
-    }
     }
 }

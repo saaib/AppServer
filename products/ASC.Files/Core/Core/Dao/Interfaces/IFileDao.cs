@@ -29,11 +29,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Files.Core.Security;
 using ASC.Web.Files.Services.DocumentService;
 
 namespace ASC.Files.Core
 {
+    [Scope]
     public interface IFileDao<T>
     {
         /// <summary>
@@ -86,7 +88,7 @@ namespace ASC.Files.Core
         /// </summary>
         /// <param name="fileIds">id file</param>
         /// <returns></returns>
-        Task<List<File<T>>> GetFiles(T[] fileIds);
+        Task<List<File<T>>> GetFiles(IEnumerable<T> fileIds);
 
         /// <summary>
         ///     Gets the file (s) by ID (s) for share
@@ -98,7 +100,7 @@ namespace ASC.Files.Core
         /// <param name="searchText"></param>
         /// <param name="searchInContent"></param>
         /// <returns></returns>
-        Task<List<File<T>>> GetFilesForShare(T[] fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
+        Task<List<File<T>>> GetFilesFiltered(IEnumerable<T> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
 
         /// <summary>
         /// 
@@ -279,7 +281,7 @@ namespace ASC.Files.Core
         /// <param name="searchText"></param>
         /// <param name="searchInContent"></param>
         /// <returns></returns>
-        Task<List<File<T>>> GetFiles(T[] parentIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
+        Task<List<File<T>>> GetFiles(IEnumerable<T> parentIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
 
         /// <summary>
         /// Search the list of files containing text

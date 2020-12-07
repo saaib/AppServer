@@ -43,10 +43,8 @@ using ASC.Core.Tenants;
 using ASC.Files.Core;
 using ASC.Files.Core.EF;
 using ASC.Files.Core.Resources;
-using ASC.Files.Core.Security;
 using ASC.Files.Core.Thirdparty;
 using ASC.Web.Core.Files;
-using ASC.Web.Files.Services.DocumentService;
 using ASC.Web.Studio.Core;
 
 using Microsoft.EntityFrameworkCore;
@@ -54,6 +52,7 @@ using Microsoft.Extensions.Options;
 
 namespace ASC.Files.Thirdparty.Sharpbox
 {
+    [Scope]
     internal class SharpBoxFileDao : SharpBoxDaoBase, IFileDao<string>
     {
         private CrossDao CrossDao { get; }
@@ -109,14 +108,14 @@ namespace ASC.Files.Thirdparty.Sharpbox
             return new List<File<string>> { await GetFile(fileId) };
         }
 
-        public Task<List<File<string>>> GetFiles(string[] fileIds)
+        public Task<List<File<string>>> GetFiles(IEnumerable<string> fileIds)
         {
             return Task.FromResult(fileIds.Select(fileId => ToFile(GetFileById(fileId))).ToList());
         }
 
-        public async Task<List<File<string>>> GetFilesForShare(string[] fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
+        public async Task<List<File<string>>> GetFilesFiltered(IEnumerable<string> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
         {
-            if (fileIds == null || fileIds.Length == 0 || filterType == FilterType.FoldersOnly) return new List<File<string>>();
+            if (fileIds == null || !fileIds.Any() || filterType == FilterType.FoldersOnly) return new List<File<string>>();
 
             var files = (await GetFiles(fileIds)).AsEnumerable();
 
@@ -227,25 +226,14 @@ namespace ASC.Files.Thirdparty.Sharpbox
 
             if (orderBy == null) orderBy = new OrderBy(SortedByType.DateAndTime, false);
 
-            switch (orderBy.SortedBy)
+            files = orderBy.SortedBy switch
             {
-                case SortedByType.Author:
-                    files = orderBy.IsAsc ? files.OrderBy(x => x.CreateBy) : files.OrderByDescending(x => x.CreateBy);
-                    break;
-                case SortedByType.AZ:
-                    files = orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title);
-                    break;
-                case SortedByType.DateAndTime:
-                    files = orderBy.IsAsc ? files.OrderBy(x => x.ModifiedOn) : files.OrderByDescending(x => x.ModifiedOn);
-                    break;
-                case SortedByType.DateAndTimeCreation:
-                    files = orderBy.IsAsc ? files.OrderBy(x => x.CreateOn) : files.OrderByDescending(x => x.CreateOn);
-                    break;
-                default:
-                    files = orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title);
-                    break;
-            }
-
+                SortedByType.Author => orderBy.IsAsc ? files.OrderBy(x => x.CreateBy) : files.OrderByDescending(x => x.CreateBy),
+                SortedByType.AZ => orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title),
+                SortedByType.DateAndTime => orderBy.IsAsc ? files.OrderBy(x => x.ModifiedOn) : files.OrderByDescending(x => x.ModifiedOn),
+                SortedByType.DateAndTimeCreation => orderBy.IsAsc ? files.OrderBy(x => x.CreateOn) : files.OrderByDescending(x => x.CreateOn),
+                _ => orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title),
+            };
             return Task.FromResult(files.ToList());
         }
 
@@ -255,8 +243,8 @@ namespace ASC.Files.Thirdparty.Sharpbox
 
             if (fileToDownload == null)
                 throw new ArgumentNullException("file", FilesCommonResource.ErrorMassage_FileNotFound);
-            if (fileToDownload is ErrorEntry)
-                throw new Exception(((ErrorEntry)fileToDownload).Error);
+            if (fileToDownload is ErrorEntry errorEntry)
+                throw new Exception(errorEntry.Error);
 
             var fileStream = fileToDownload.GetDataTransferAccessor().GetDownloadStream();
 
@@ -603,11 +591,9 @@ namespace ASC.Files.Thirdparty.Sharpbox
             else
             {
                 var tempPath = uploadSession.GetItemOrDefault<string>("TempPath");
-                using (var fs = new FileStream(tempPath, FileMode.Append))
-                {
+                using var fs = new FileStream(tempPath, FileMode.Append);
                     stream.CopyTo(fs);
                 }
-            }
 
             uploadSession.BytesUploaded += chunkLength;
 
@@ -630,11 +616,9 @@ namespace ASC.Files.Thirdparty.Sharpbox
                 return ToFile(GetFileById(sharpboxSession.FileId));
             }
 
-            using (var fs = new FileStream(uploadSession.GetItemOrDefault<string>("TempPath"), FileMode.Open, FileAccess.Read, System.IO.FileShare.None, 4096, FileOptions.DeleteOnClose))
-            {
+            using var fs = new FileStream(uploadSession.GetItemOrDefault<string>("TempPath"), FileMode.Open, FileAccess.Read, System.IO.FileShare.None, 4096, FileOptions.DeleteOnClose);
                 return await SaveFile(uploadSession.File, fs);
             }
-        }
 
         public void AbortUploadSession(ChunkedUploadSession<string> uploadSession)
         {
@@ -668,73 +652,5 @@ namespace ASC.Files.Thirdparty.Sharpbox
         }
 
         #endregion
-
-        #region Only in TMFileDao
-
-        public void ReassignFiles(string[] fileIds, Guid newOwnerId)
-        {
         }
-
-        public Task<List<File<string>>> GetFiles(string[] parentIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
-        {
-            return Task.FromResult(new List<File<string>>());
-        }
-
-        public Task<IEnumerable<File<string>>> Search(string text, bool bunch)
-        {
-            return null;
-        }
-
-        public bool IsExistOnStorage(File<string> file)
-        {
-            return true;
-        }
-
-        public void SaveEditHistory(File<string> file, string changes, Stream differenceStream)
-        {
-            //Do nothing
-        }
-
-        public List<EditHistory> GetEditHistory(DocumentServiceHelper documentServiceHelper, string fileId, int fileVersion)
-        {
-            return null;
-        }
-
-        public Stream GetDifferenceStream(File<string> file)
-        {
-            return null;
-        }
-
-        public bool ContainChanges(string fileId, int fileVersion)
-        {
-            return false;
-        }
-
-        public string GetUniqFilePath(File<string> file, string fileTitle)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<(File<int>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to)
-        {
-            throw new NotImplementedException();
-        }
-
-        public IEnumerable<int> GetTenantsWithFeeds(DateTime fromTime)
-        {
-            throw new NotImplementedException();
-        }
-
-        #endregion
-    }
-
-    public static class SharpBoxFileDaoExtention
-    {
-        public static DIHelper AddSharpBoxFileDaoService(this DIHelper services)
-        {
-            services.TryAddScoped<SharpBoxFileDao>();
-
-            return services;
-        }
-    }
 }

@@ -29,10 +29,12 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Files.Core.Security;
 
 namespace ASC.Files.Core
 {
+    [Scope]
     public interface IFolderDao<T>
     {
         /// <summary>
@@ -94,7 +96,7 @@ namespace ASC.Files.Core
         /// <param name="searchSubfolders"></param>
         /// <param name="checkShare"></param>
         /// <returns></returns>
-        Task<List<Folder<T>>> GetFolders(T[] folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true);
+        Task<List<Folder<T>>> GetFolders(IEnumerable<T> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true);
 
         /// <summary>
         ///     Get folder, contains folder with id
@@ -223,7 +225,7 @@ namespace ASC.Files.Core
         /// <param name="text"></param>
         /// <param name="bunch"></param>
         /// <returns></returns>
-        Task<IEnumerable<Folder<T>>> Search(string text, bool bunch = false);
+        Task<IEnumerable<Folder<T>>> SearchFolders(string text, bool bunch = false);
 
         /// <summary>
         /// Only in TMFolderDao
@@ -262,6 +264,40 @@ namespace ASC.Files.Core
         Task<T> GetFolderIDShare(bool createIfNotExists);
 
         /// <summary>
+        /// Returns id folder "Recent"
+        /// Only in TMFolderDao
+        /// </summary>
+        /// <param name="createIfNotExists"></param>
+        /// <returns></returns>
+        Task<T> GetFolderIDRecent(bool createIfNotExists);
+
+        /// <summary>
+
+        /// <summary>
+        /// Returns id folder "Favorites"
+        /// Only in TMFolderDao
+        /// </summary>
+        /// <param name="createIfNotExists"></param>
+        /// <returns></returns>
+        Task<T> GetFolderIDFavorites(bool createIfNotExists);
+
+        /// <summary>
+        /// Returns id folder "Templates"
+        /// Only in TMFolderDao
+        /// </summary>
+        /// <param name="createIfNotExists"></param>
+        /// <returns></returns>
+        Task<T> GetFolderIDTemplates(bool createIfNotExists);
+
+        /// <summary>
+        /// Returns id folder "Privacy"
+        /// Only in TMFolderDao
+        /// </summary>
+        /// <param name="createIfNotExists"></param>
+        /// <returns></returns>
+        Task<T> GetFolderIDPrivacy(bool createIfNotExists, Guid? userId = null);
+
+        /// <summary>
         /// Returns id folder "Trash"
         /// Only in TMFolderDao
         /// </summary>
@@ -296,9 +332,9 @@ namespace ASC.Files.Core
         Task<Dictionary<string, string>> GetBunchObjectIDs(List<T> folderIDs);
 
 
-        IEnumerable<(Folder<T>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to);
+        IEnumerable<(Folder<T>, SmallShareRecord)> GetFeedsForFolders(int tenant, DateTime from, DateTime to);
 
-        IEnumerable<T> GetTenantsWithFeeds(DateTime fromTime);
+        IEnumerable<T> GetTenantsWithFeedsForFolders(DateTime fromTime);
 
         #endregion
     }

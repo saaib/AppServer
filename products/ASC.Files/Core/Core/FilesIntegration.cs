@@ -31,25 +31,20 @@ using System.Threading.Tasks;
 
 using ASC.Common;
 using ASC.Files.Core;
-using ASC.Files.Core.Data;
 using ASC.Files.Core.Security;
-using ASC.Web.Files.Classes;
 
 namespace ASC.Web.Files.Api
 {
+    [Scope]
     public class FilesIntegration
     {
         private static readonly IDictionary<string, IFileSecurityProvider> providers = new Dictionary<string, IFileSecurityProvider>();
 
         private IDaoFactory DaoFactory { get; }
-        private IFileSecurity FileSecurity { get; }
-        private GlobalStore GlobalStore { get; }
 
-        public FilesIntegration(IDaoFactory daoFactory, IFileSecurity fileSecurity, GlobalStore globalStore)
+        public FilesIntegration(IDaoFactory daoFactory)
         {
             DaoFactory = daoFactory;
-            FileSecurity = fileSecurity;
-            GlobalStore = globalStore;
         }
 
         public async Task<T> RegisterBunch<T>(string module, string bunch, string data)
@@ -137,20 +132,5 @@ namespace ASC.Web.Files.Api
 
             return result;
         }
-    }
-    public static class FilesIntegrationExtension
-    {
-        public static DIHelper AddFilesIntegrationService(this DIHelper services)
-        {
-            if (services.TryAddScoped<FilesIntegration>())
-            {
-            return services
-                .AddDaoFactoryService()
-                .AddFileSecurityService()
-                .AddGlobalStoreService();
-        }
-
-            return services;
-    }
     }
 }

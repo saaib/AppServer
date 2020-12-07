@@ -32,6 +32,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using ASC.Common;
 using ASC.Common.Security.Authentication;
 using ASC.Common.Threading;
 using ASC.Core.Tenants;
@@ -45,10 +46,12 @@ using ASC.Web.Files.Helpers;
 using ASC.Web.Files.Utils;
 using ASC.Web.Studio.Core;
 
-using Ionic.Zip;
-
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Primitives;
+
+using SharpCompress.Common;
+using SharpCompress.Writers;
+using SharpCompress.Writers.Zip;
 
 namespace ASC.Web.Files.Services.WCFService.FileOperations
 {
@@ -77,21 +80,20 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             get { return FileOperationType.Download; }
         }
 
-        public override void RunJob(DistributedTask _, CancellationToken cancellationToken)
+        public override void RunJob(DistributedTask distributedTask, CancellationToken cancellationToken)
         {
-            base.RunJob(_, cancellationToken);
+            base.RunJob(distributedTask, cancellationToken);
 
             using var scope = ThirdPartyOperation.CreateScope();
-            var globalStore = scope.ServiceProvider.GetService<GlobalStore>();
-            var filesLinkUtility = scope.ServiceProvider.GetService<FilesLinkUtility>();
-
+            var scopeClass = scope.ServiceProvider.GetService<FileDownloadOperationScope>();
+            var (globalStore, filesLinkUtility, _, _, _) = scopeClass;
             using var stream = TempStream.Create();
-            using (var zip = new ZipOutputStream(stream, true)
-            {
-                CompressionLevel = Ionic.Zlib.CompressionLevel.Level3,
-                AlternateEncodingUsage = ZipOption.AsNecessary,
-                AlternateEncoding = Encoding.UTF8,
-            })
+
+            var writerOptions = new ZipWriterOptions(CompressionType.Deflate);
+            writerOptions.ArchiveEncoding.Default = Encoding.UTF8;
+            writerOptions.DeflateCompressionLevel = SharpCompress.Compressors.Deflate.CompressionLevel.Level3;
+
+            using (var zip = WriterFactory.Open(stream, ArchiveType.Zip, writerOptions))
             {
                 (ThirdPartyOperation as FileDownloadOperation<string>).CompressToZip(zip, stream, scope).Wait();
                 (DaoOperation as FileDownloadOperation<int>).CompressToZip(zip, stream, scope).Wait();
@@ -126,20 +128,16 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             get { return FileOperationType.Download; }
         }
 
-        public bool Compress { get; }
-
-        public FileDownloadOperation(IServiceProvider serviceProvider, FileDownloadOperationData<T> fileDownloadOperationData, bool compress = true)
+        public FileDownloadOperation(IServiceProvider serviceProvider, FileDownloadOperationData<T> fileDownloadOperationData)
             : base(serviceProvider, fileDownloadOperationData)
         {
             files = fileDownloadOperationData.FilesDownload;
             headers = fileDownloadOperationData.Headers;
-            Compress = compress;
         }
-
 
         protected override async Task Do(IServiceScope scope)
         {
-            if (!Compress && !Files.Any() && !Folders.Any()) return;
+            if (!Files.Any() && !Folders.Any()) return;
 
             entriesPathId = await GetEntriesPathId(scope);
             if (entriesPathId == null || entriesPathId.Count == 0)
@@ -152,38 +150,8 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 throw new DirectoryNotFoundException(FilesCommonResource.ErrorMassage_FolderNotFound);
             }
 
-            var globalStore = scope.ServiceProvider.GetService<GlobalStore>();
-            var filesLinkUtility = scope.ServiceProvider.GetService<FilesLinkUtility>();
-
             ReplaceLongPath(entriesPathId);
-
-            if (Compress)
-            {
-                using var stream = TempStream.Create();
-                using var zip = new ZipOutputStream(stream, true)
-                {
-                    CompressionLevel = Ionic.Zlib.CompressionLevel.Level3,
-                    AlternateEncodingUsage = ZipOption.AsNecessary,
-                    AlternateEncoding = Encoding.UTF8
-                };
-
-                await CompressToZip(zip, stream, scope);
-
-                if (stream != null)
-                {
-                    stream.Position = 0;
-                    const string fileName = FileConstant.DownloadTitle + ".zip";
-                    var store = globalStore.GetStore();
-                    store.Save(
-                        FileConstant.StorageDomainTmp,
-                        string.Format(@"{0}\{1}", ((IAccount)Thread.CurrentPrincipal.Identity).ID, fileName),
-                        stream,
-                        "application/zip",
-                        "attachment; filename=\"" + fileName + "\"");
-                    Status = string.Format("{0}?{1}=bulk", filesLinkUtility.FileHandlerPath, FilesLinkUtility.Action);
                 }
-            }
-        }
 
         private async Task<ItemNameValueCollection<T>> ExecPathFromFile(IServiceScope scope, File<T> file, string path)
         {
@@ -214,16 +182,14 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             var entriesPathId = new ItemNameValueCollection<T>();
             if (0 < Files.Count)
             {
-                var files = await FileDao.GetFiles(Files.ToArray());
+                var files = await FileDao.GetFiles(Files);
                 files = (await FilesSecurity.FilterRead(files)).ToList();
                 files.ForEach(async file => entriesPathId.Add(await ExecPathFromFile(scope, file, string.Empty)));
             }
             if (0 < Folders.Count)
             {
-                (await FilesSecurity.FilterRead(await FolderDao.GetFolders(Files.ToArray())))
-                    .Cast<FileEntry<T>>()
-                    .ToList()
-                    .ForEach(async folder => await fileMarker.RemoveMarkAsNew(folder));
+                (await FilesSecurity.FilterRead(await FolderDao.GetFolders(Files))).Cast<FileEntry<T>>().ToList()
+                             .ForEach(async folder => await fileMarker.RemoveMarkAsNew(folder));
 
                 var filesInFolder = await GetFilesInFolders(scope, Folders, string.Empty);
                 entriesPathId.Add(filesInFolder);
@@ -265,12 +231,11 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             return entriesPathId;
         }
 
-        internal async Task CompressToZip(ZipOutputStream zip, Stream stream, IServiceScope scope)
+        internal async Task CompressToZip(IWriter zip, Stream stream, IServiceScope scope)
         {
             if (entriesPathId == null) return;
-            var setupInfo = scope.ServiceProvider.GetService<SetupInfo>();
-            var fileConverter = scope.ServiceProvider.GetService<FileConverter>();
-            var filesMessageService = scope.ServiceProvider.GetService<FilesMessageService>();
+            var scopeClass = scope.ServiceProvider.GetService<FileDownloadOperationScope>();
+            var (_, _, setupInfo, fileConverter, filesMessageService) = scopeClass;
             var FileDao = scope.ServiceProvider.GetService<IFileDao<T>>();
 
             foreach (var path in entriesPathId.AllKeys)
@@ -331,17 +296,17 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                         }
                     }
 
-                    zip.PutNextEntry(newtitle);
-
                     if (!entryId.Equals(default(T)) && file != null)
                     {
+                        Stream readStream = null;
+
                         try
                         {
                             if (fileConverter.EnableConvert(file, convertToExt))
                             {
                                 //Take from converter
-                                using var readStream = fileConverter.Exec(file, convertToExt);
-                                readStream.CopyTo(zip);
+                                readStream = fileConverter.Exec(file, convertToExt);
+                                
                                 if (!string.IsNullOrEmpty(convertToExt))
                                 {
                                     filesMessageService.Send(file, headers, MessageAction.FileDownloadedAs, file.Title, convertToExt);
@@ -353,15 +318,24 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                             }
                             else
                             {
-                                using var readStream = FileDao.GetFileStream(file);
-                                readStream.CopyTo(zip);
+                                readStream = FileDao.GetFileStream(file);
                                 filesMessageService.Send(file, headers, MessageAction.FileDownloaded, file.Title);
                             }
+
+                            zip.Write(newtitle, readStream);
                         }
                         catch (Exception ex)
                         {
                             Error = ex.Message;
                             Logger.Error(Error, ex);
+                        }
+                        finally
+                        {
+                            if (readStream != null)
+                            {
+                                readStream.Close();
+                                readStream.Dispose();
+                    }
                         }
                     }
                     counter++;
@@ -442,4 +416,33 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             dic.Remove(name);
         }
     }
+
+    [Scope]
+    public class FileDownloadOperationScope
+    {
+        private GlobalStore GlobalStore { get; }
+        private FilesLinkUtility FilesLinkUtility { get; }
+        private SetupInfo SetupInfo { get; }
+        private FileConverter FileConverter { get; }
+        private FilesMessageService FilesMessageService { get; }
+
+        public FileDownloadOperationScope(GlobalStore globalStore, FilesLinkUtility filesLinkUtility, SetupInfo setupInfo, FileConverter fileConverter, FilesMessageService filesMessageService)
+        {
+            GlobalStore = globalStore;
+            FilesLinkUtility = filesLinkUtility;
+            SetupInfo = setupInfo;
+            FileConverter = fileConverter;
+            FilesMessageService = filesMessageService;
+        }
+
+        public void Deconstruct(out GlobalStore globalStore, out FilesLinkUtility filesLinkUtility, out SetupInfo setupInfo, out FileConverter fileConverter, out FilesMessageService filesMessageService)
+        {
+            globalStore = GlobalStore;
+            filesLinkUtility = FilesLinkUtility;
+            setupInfo = SetupInfo;
+            fileConverter = FileConverter;
+            filesMessageService = FilesMessageService;
+        }
+    }
+
 }
