@@ -33,6 +33,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 using ASC.Common;
+using ASC.Common.Logging;
 using ASC.Core;
 using ASC.Core.Common.EF;
 using ASC.Core.Common.Settings;
@@ -54,6 +55,7 @@ using ASC.Web.Studio.Utility;
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ASC.Files.Core.Data
 {
@@ -71,6 +73,7 @@ namespace ASC.Files.Core.Data
         private ChunkedUploadSessionHolder ChunkedUploadSessionHolder { get; }
         private ProviderFolderDao ProviderFolderDao { get; }
         private CrossDao CrossDao { get; }
+        public ILog Log { get; }
 
         public FileDao(
             FactoryIndexerFile factoryIndexer,
@@ -92,7 +95,8 @@ namespace ASC.Files.Core.Data
             IDaoFactory daoFactory,
             ChunkedUploadSessionHolder chunkedUploadSessionHolder,
             ProviderFolderDao providerFolderDao,
-            CrossDao crossDao)
+            CrossDao crossDao,
+            IOptionsMonitor<ILog> optionMonitor)
             : base(
                   dbContextManager,
                   userManager,
@@ -107,6 +111,7 @@ namespace ASC.Files.Core.Data
                   authContext,
                   serviceProvider)
         {
+
             FactoryIndexer = factoryIndexer;
             GlobalStore = globalStore;
             GlobalSpace = globalSpace;
@@ -115,6 +120,7 @@ namespace ASC.Files.Core.Data
             ChunkedUploadSessionHolder = chunkedUploadSessionHolder;
             ProviderFolderDao = providerFolderDao;
             CrossDao = crossDao;
+            Log = optionMonitor.CurrentValue;
         }
 
         public void InvalidateCache(int fileId)
@@ -660,7 +666,7 @@ namespace ASC.Files.Core.Data
 
         public async Task DeleteFile(int fileId)
         {
-            await DeleteFile(fileId, true);
+            await DeleteFile(fileId, true).ConfigureAwait(false);
         }
 
         private async Task DeleteFile(int fileId, bool deleteFolder)
@@ -668,44 +674,51 @@ namespace ASC.Files.Core.Data
             if (fileId == default) return;
             using var tx = await FilesDbContext.Database.BeginTransactionAsync();
 
-            var fromFolders = await Query(FilesDbContext.Files)
+            var fromFolders = Query(FilesDbContext.Files)
                 .Where(r => r.Id == fileId)
                 .Select(a => a.FolderId)
                 .Distinct()
-                .ToListAsync()
-                .ConfigureAwait(false);
+                .AsAsyncEnumerable();
 
-            var toDeleteFiles = Query(FilesDbContext.Files).Where(r => r.Id == fileId);
+            var toDeleteFiles = Query(FilesDbContext.Files).Where(r => r.Id == fileId).AsAsyncEnumerable();
             FilesDbContext.RemoveRange(toDeleteFiles);
 
-            foreach (var d in toDeleteFiles)
+            await foreach (var d in toDeleteFiles)
             {
                 FactoryIndexer.DeleteAsync(d);
             }
 
-            var toDeleteLinks = Query(FilesDbContext.TagLink).Where(r => r.EntryId == fileId.ToString()).Where(r => r.EntryType == FileEntryType.File);
-            FilesDbContext.RemoveRange(toDeleteFiles);
+            var toDeleteLinks = Query(FilesDbContext.TagLink)
+                .Where(r => r.EntryId == fileId.ToString())
+                .Where(r => r.EntryType == FileEntryType.File)
+                .AsAsyncEnumerable();
+            FilesDbContext.RemoveRange(toDeleteLinks);
 
             var tagsToRemove = Query(FilesDbContext.Tag)
-                .Where(r => !Query(FilesDbContext.TagLink).Where(a => a.TagId == r.Id).Any());
+                .Where(r => !Query(FilesDbContext.TagLink).Where(a => a.TagId == r.Id).Any())
+                .AsAsyncEnumerable();
 
-            FilesDbContext.Tag.RemoveRange(tagsToRemove);
+            FilesDbContext.RemoveRange(tagsToRemove);
 
             var securityToDelete = Query(FilesDbContext.Security)
                 .Where(r => r.EntryId == fileId.ToString())
-                .Where(r => r.EntryType == FileEntryType.File);
+                .Where(r => r.EntryType == FileEntryType.File)
+                .AsAsyncEnumerable();
 
-            FilesDbContext.Security.RemoveRange(securityToDelete);
+            FilesDbContext.RemoveRange(securityToDelete);
             await FilesDbContext.SaveChangesAsync();
 
             await tx.CommitAsync();
 
-            fromFolders.ForEach(folderId => RecalculateFilesCount(folderId));
+            await foreach(var f in fromFolders)
+            {
+                RecalculateFilesCount(f);
+            }
 
             if (deleteFolder)
                 DeleteFolder(fileId);
 
-            var toDeleteFile = toDeleteFiles.FirstOrDefault(r => r.CurrentVersion);
+            var toDeleteFile = await toDeleteFiles.FirstOrDefaultAsync(r => r.CurrentVersion);
             if (toDeleteFile != null)
             {
                 FactoryIndexer.DeleteAsync(toDeleteFile);

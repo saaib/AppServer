@@ -32,6 +32,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using ASC.Common;
+using ASC.Common.Logging;
 using ASC.Core;
 using ASC.Core.Common.EF;
 using ASC.Core.Common.Settings;
@@ -51,6 +52,7 @@ using ASC.Web.Studio.Utility;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace ASC.Files.Core.Data
 {
@@ -115,7 +117,7 @@ namespace ASC.Files.Core.Data
         public async Task<Folder<int>> GetFolder(int folderId)
         {
             var query = GetFolderQuery(r => r.Id == folderId).AsNoTracking();
-            return ToFolder(await FromQueryWithShared(query).SingleOrDefaultAsync());
+            return ToFolder(await FromQueryWithShared(query).SingleOrDefaultAsync().ConfigureAwait(false));
         }
 
         public async Task<Folder<int>> GetFolder(string title, int parentId)
