@@ -185,9 +185,9 @@ namespace ASC.Files.Core.Data
             return result.Select(ToFile).ToList();
         }
 
-        public async Task<List<File<int>>> GetFilesFiltered(IEnumerable<int> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
+        public async IAsyncEnumerable<File<int>> GetFilesFiltered(IEnumerable<int> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
         {
-            if (fileIds == null || !fileIds.Any() || filterType == FilterType.FoldersOnly) return new List<File<int>>();
+            if (fileIds == null || !fileIds.Any() || filterType == FilterType.FoldersOnly) yield break;
 
             var query = GetFileQuery(r => fileIds.Any(a => a == r.Id) && r.CurrentVersion).AsNoTracking();
 
@@ -236,9 +236,12 @@ namespace ASC.Files.Core.Data
                     break;
             }
 
-            var result = await FromQuery(query).ToListAsync();
+            var result = FromQuery(query).AsAsyncEnumerable();
 
-            return result.Select(ToFile).ToList();
+            await foreach(var r in result)
+            {
+                yield return ToFile(r);
+            }
         }
 
 
@@ -256,9 +259,9 @@ namespace ASC.Files.Core.Data
                 .ConfigureAwait(false);
         }
 
-        public async Task<List<File<int>>> GetFiles(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        public async IAsyncEnumerable<File<int>> GetFiles(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
         {
-            if (filterType == FilterType.FoldersOnly) return new List<File<int>>();
+            if (filterType == FilterType.FoldersOnly) yield break;
 
             if (orderBy == null) orderBy = new OrderBy(SortedByType.DateAndTime, false);
 
@@ -330,9 +333,12 @@ namespace ASC.Files.Core.Data
                     break;
             }
 
-            var result = await FromQueryWithShared(q).ToListAsync();
+            var result = FromQueryWithShared(q).AsAsyncEnumerable();
 
-            return result.Select(ToFile).ToList();
+            await foreach (var r in result)
+            {
+                yield return ToFile(r);
+            }
         }
 
         public Stream GetFileStream(File<int> file, long offset)
@@ -406,8 +412,7 @@ namespace ASC.Files.Core.Data
                 if (file.CreateBy == default) file.CreateBy = AuthContext.CurrentAccount.ID;
                 if (file.CreateOn == default) file.CreateOn = TenantUtil.DateTimeNow();
 
-                var toUpdate = FilesDbContext.Files
-
+                var toUpdate = ((IQueryable<DbFile>)FilesDbContext.Files)
                     .Where(r => r.Id == file.ID && r.CurrentVersion && r.TenantId == TenantID)
                     .FirstOrDefault();
 
@@ -446,7 +451,7 @@ namespace ASC.Files.Core.Data
                 file.PureTitle = file.Title;
 
                 var parentFolders =
-                    FilesDbContext.Tree
+                    ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.FolderId == file.FolderID)
                     .OrderByDescending(r => r.Level)
                     .ToList();
@@ -455,8 +460,7 @@ namespace ASC.Files.Core.Data
 
                 if (parentFoldersIds.Any())
                 {
-                    var folderToUpdate = FilesDbContext.Folders
-
+                    var folderToUpdate = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                         .Where(r => parentFoldersIds.Any(a => a == r.Id));
 
                     foreach (var f in folderToUpdate)
@@ -546,9 +550,8 @@ namespace ASC.Files.Core.Data
                 if (file.CreateBy == default) file.CreateBy = AuthContext.CurrentAccount.ID;
                 if (file.CreateOn == default) file.CreateOn = TenantUtil.DateTimeNow();
 
-                toUpdate = FilesDbContext.Files
+                toUpdate = ((IQueryable<DbFile>)FilesDbContext.Files)
                     .Where(r => r.Id == file.ID && r.Version == file.Version)
-
                     .Where(r => r.Id == file.ID && r.Version == file.Version && r.TenantId == TenantID)
                     .FirstOrDefault();
 
@@ -573,8 +576,7 @@ namespace ASC.Files.Core.Data
 
                 file.PureTitle = file.Title;
 
-                var parentFolders = FilesDbContext.Tree
-
+                var parentFolders = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.FolderId == file.FolderID)
                     .OrderByDescending(r => r.Level)
                     .ToList();
@@ -583,8 +585,7 @@ namespace ASC.Files.Core.Data
 
                 if (parentFoldersIds.Any())
                 {
-                    var folderToUpdate = FilesDbContext.Folders
-
+                    var folderToUpdate = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                         .Where(r => parentFoldersIds.Any(a => a == r.Id));
 
                     foreach (var f in folderToUpdate)
@@ -781,8 +782,7 @@ namespace ASC.Files.Core.Data
             }
 
             var parentFolders =
-                await FilesDbContext.Tree
-
+                await ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                 .Where(r => r.FolderId == toFolderId)
                 .OrderByDescending(r => r.Level)
                 .ToListAsync()
@@ -1237,7 +1237,7 @@ namespace ASC.Files.Core.Data
 
         public IEnumerable<(File<int>, SmallShareRecord)> GetFeeds(int tenant, DateTime from, DateTime to)
         {
-            var q1 = FilesDbContext.Files
+            var q1 = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Where(r => r.TenantId == tenant)
                 .Where(r => r.CurrentVersion)
                 .Where(r => r.ModifiedOn >= from && r.ModifiedOn <= to);
@@ -1245,12 +1245,12 @@ namespace ASC.Files.Core.Data
             var q2 = FromQuery(q1)
                 .Select(r => new DbFileQueryWithSecurity() { DbFileQuery = r, Security = null });
 
-            var q3 = FilesDbContext.Files
+            var q3 = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Where(r => r.TenantId == tenant)
                 .Where(r => r.CurrentVersion);
 
             var q4 = FromQuery(q3)
-                .Join(FilesDbContext.Security.DefaultIfEmpty(), r => r.File.Id.ToString(), s => s.EntryId, (f, s) => new DbFileQueryWithSecurity { DbFileQuery = f, Security = s })
+                .Join(((IQueryable<DbFilesSecurity>)FilesDbContext.Security).DefaultIfEmpty(), r => r.File.Id.ToString(), s => s.EntryId, (f, s) => new DbFileQueryWithSecurity { DbFileQuery = f, Security = s })
                 .Where(r => r.Security.TenantId == tenant)
                 .Where(r => r.Security.EntryType == FileEntryType.File)
                 .Where(r => r.Security.Security == Security.FileShare.Restrict)
@@ -1261,7 +1261,7 @@ namespace ASC.Files.Core.Data
 
         public IEnumerable<int> GetTenantsWithFeeds(DateTime fromTime)
         {
-            var q1 = FilesDbContext.Files
+            var q1 = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Where(r => r.ModifiedOn > fromTime)
                 .Select(r => r.TenantId)
                 .GroupBy(r => r)
@@ -1269,7 +1269,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => r.Key)
                 .ToList();
 
-            var q2 = FilesDbContext.Security
+            var q2 = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                 .Where(r => r.TimeStamp > fromTime)
                 .Select(r => r.TenantId)
                 .GroupBy(r => r)
@@ -1359,9 +1359,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => new DbFileQuery
                 {
                     File = r,
-                    Root =
-                    FilesDbContext.Folders
-
+                    Root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                         .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                         .Where(x => x.folder.TenantId == r.TenantId)
                         .Where(x => x.tree.FolderId == r.FolderId)
@@ -1369,8 +1367,7 @@ namespace ASC.Files.Core.Data
                         .Select(r => r.folder)
                         .Take(1)
                         .FirstOrDefault(),
-                    Shared =
-                     FilesDbContext.Security
+                    Shared = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                         .Where(x=> x.TenantId == TenantID)
                         .Where(x => x.EntryType == FileEntryType.File)
                         .Where(x => x.EntryId == r.Id.ToString())
@@ -1384,8 +1381,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => new DbFileQuery
                 {
                     File = r,
-                    Root = FilesDbContext.Folders
-
+                    Root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId == r.TenantId)
                             .Where(x => x.tree.FolderId == r.FolderId)

@@ -75,7 +75,7 @@ namespace ASC.AuditTrail
         {
             var query =
                from q in AuditTrailContext.AuditEvents
-               from p in AuditTrailContext.User.Where(p => q.UserId == p.Id).DefaultIfEmpty()
+               from p in ((IQueryable<User>)AuditTrailContext.User).Where(p => q.UserId == p.Id).DefaultIfEmpty()
                where q.TenantId == tenant
                orderby q.Date descending
                select new Query { AuditEvent = q, User = p };
@@ -95,7 +95,7 @@ namespace ASC.AuditTrail
 
         public int GetCount(int tenant, DateTime? from = null, DateTime? to = null)
         {
-            IQueryable<Core.Common.EF.Model.AuditEvent> query = AuditTrailContext.AuditEvents
+            IQueryable<Core.Common.EF.Model.AuditEvent> query = ((IQueryable<Core.Common.EF.Model.AuditEvent>)AuditTrailContext.AuditEvents)
                 .Where(a => a.TenantId == tenant)
                 .OrderByDescending(a => a.Date);
 

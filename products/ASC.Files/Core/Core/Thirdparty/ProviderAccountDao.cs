@@ -132,8 +132,7 @@ namespace ASC.Files.Thirdparty
         {
             try
             {
-                return FilesDbContext.ThirdpartyAccount
-                    
+                return ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => r.UserId == userId)
                     .ToList()
@@ -149,7 +148,8 @@ namespace ASC.Files.Thirdparty
 
         private List<IProviderInfo> GetProvidersInfoInternal(int linkId = -1, FolderType folderType = FolderType.DEFAULT, string searchText = null)
         {
-            var querySelect = FilesDbContext.ThirdpartyAccount.Where(r => r.TenantId == TenantID);
+            var querySelect = ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
+                .Where(r => r.TenantId == TenantID);
 
             if (folderType == FolderType.USER || folderType == FolderType.DEFAULT && linkId == -1)
             {
@@ -230,8 +230,7 @@ namespace ASC.Files.Thirdparty
 
         public virtual int UpdateProviderInfo(int linkId, AuthData authData)
         {
-            var forUpdate = FilesDbContext.ThirdpartyAccount
-                
+            var forUpdate = ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                 .Where(r => r.Id == linkId)
                 .Where(r => r.TenantId == TenantID)
                 .ToList();
@@ -255,8 +254,7 @@ namespace ASC.Files.Thirdparty
             if (newAuthData != null && !newAuthData.IsEmpty())
             {
                 var querySelect =
-                    FilesDbContext.ThirdpartyAccount
-                    
+                    ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => r.Id == linkId);
 
@@ -291,8 +289,7 @@ namespace ASC.Files.Thirdparty
                     throw new UnauthorizedAccessException(string.Format(FilesCommonResource.ErrorMassage_SecurityException_Auth, key));
             }
 
-            var toUpdate = FilesDbContext.ThirdpartyAccount
-                
+            var toUpdate = ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                 .Where(r => r.Id == linkId)
                 .Where(r => r.TenantId == TenantID)
                 .ToList();
@@ -332,15 +329,13 @@ namespace ASC.Files.Thirdparty
             using var tx = FilesDbContext.Database.BeginTransaction();
                 var folderId = GetProviderInfo(linkId).RootFolderId.ToString();
 
-                var entryIDs = FilesDbContext.ThirdpartyIdMapping
-                    
+                var entryIDs = ((IQueryable<DbFilesThirdpartyIdMapping>)FilesDbContext.ThirdpartyIdMapping)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => r.Id.StartsWith(folderId))
                     .Select(r => r.HashId)
                     .ToList();
 
-                var forDelete = FilesDbContext.Security
-                    
+                var forDelete = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => entryIDs.Any(a => a == r.EntryId))
                     .ToList();
@@ -348,8 +343,7 @@ namespace ASC.Files.Thirdparty
                 FilesDbContext.Security.RemoveRange(forDelete);
                 FilesDbContext.SaveChanges();
 
-                var linksForDelete = FilesDbContext.TagLink
-                    
+                var linksForDelete = ((IQueryable<DbFilesTagLink>)FilesDbContext.TagLink)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => entryIDs.Any(e => e == r.EntryId))
                     .ToList();
@@ -357,8 +351,7 @@ namespace ASC.Files.Thirdparty
                 FilesDbContext.TagLink.RemoveRange(linksForDelete);
                 FilesDbContext.SaveChanges();
 
-                var accountsForDelete = FilesDbContext.ThirdpartyAccount
-                    
+                var accountsForDelete = ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                     .Where(r => r.Id == linkId)
                     .Where(r => r.TenantId == TenantID)
                     .ToList();

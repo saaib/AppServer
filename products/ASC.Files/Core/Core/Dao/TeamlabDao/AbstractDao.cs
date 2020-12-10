@@ -99,7 +99,7 @@ namespace ASC.Files.Core.Data
 
         protected IQueryable<T> Query<T>(DbSet<T> set) where T : class, IDbFile
         {
-            return set.Where(r => r.TenantId == TenantID);
+            return ((IQueryable<T>)set).Where(r => r.TenantId == TenantID);
         }
 
         protected internal IQueryable<DbFile> GetFileQuery(Expression<Func<DbFile, bool>> where)
@@ -110,17 +110,15 @@ namespace ASC.Files.Core.Data
 
         protected void GetRecalculateFilesCountUpdate(int folderId)
         {
-            var folders = FilesDbContext.Folders
-
+            var folders = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                 .Where(r => r.TenantId == TenantID)
-                .Where(r => FilesDbContext.Tree.Where(r => r.FolderId == folderId).Select(r => r.ParentId).Any(a => a == r.Id))
+                .Where(r => ((IQueryable<DbFolderTree>)FilesDbContext.Tree).Where(r => r.FolderId == folderId).Select(r => r.ParentId).Any(a => a == r.Id))
                 .ToList();
 
             foreach (var f in folders)
             {
                 var filesCount =
-                    FilesDbContext.Files
-
+                    ((IQueryable<DbFile>)FilesDbContext.Files)
                     .Join(FilesDbContext.Tree, a => a.FolderId, b => b.FolderId, (file, tree) => new { file, tree })
                     .Where(r => r.file.TenantId == f.TenantId)
                     .Where(r => r.tree.ParentId == f.Id)

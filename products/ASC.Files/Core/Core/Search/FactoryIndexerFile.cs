@@ -65,8 +65,7 @@ namespace ASC.Web.Files.Core.Search
 
             (int, int, int) getCount(DateTime lastIndexed)
             {
-                var q = fileDao.FilesDbContext.Files
-                    
+                var q = ((IQueryable<DbFile>)fileDao.FilesDbContext.Files)
                     .Where(r => r.ModifiedOn >= lastIndexed)
                     .Where(r => r.CurrentVersion)
                     .Join(fileDao.FilesDbContext.Tenants, r => r.TenantId, r => r.Id, (f, t) => new { f, t })
@@ -80,8 +79,7 @@ namespace ASC.Web.Files.Core.Search
             }
 
             List<DbFile> getData(long i, long step, DateTime lastIndexed) =>
-                fileDao.FilesDbContext.Files
-                    
+                ((IQueryable<DbFile>)fileDao.FilesDbContext.Files)
                     .Where(r => r.ModifiedOn >= lastIndexed)
                     .Where(r => r.CurrentVersion)
                     .Where(r => r.Id >= i && r.Id <= i + step)

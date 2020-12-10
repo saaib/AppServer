@@ -113,9 +113,9 @@ namespace ASC.Files.Thirdparty.Sharpbox
             return Task.FromResult(fileIds.Select(fileId => ToFile(GetFileById(fileId))).ToList());
         }
 
-        public async Task<List<File<string>>> GetFilesFiltered(IEnumerable<string> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
+        public async IAsyncEnumerable<File<string>> GetFilesFiltered(IEnumerable<string> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent)
         {
-            if (fileIds == null || !fileIds.Any() || filterType == FilterType.FoldersOnly) return new List<File<string>>();
+            if (fileIds == null || !fileIds.Any() || filterType == FilterType.FoldersOnly) yield break;
 
             var files = (await GetFiles(fileIds)).AsEnumerable();
 
@@ -130,7 +130,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
             switch (filterType)
             {
                 case FilterType.FoldersOnly:
-                    return new List<File<string>>();
+                    yield break;
                 case FilterType.DocumentsOnly:
                     files = files.Where(x => FileUtility.GetFileTypeByFileName(x.Title) == FileType.Document);
                     break;
@@ -162,7 +162,10 @@ namespace ASC.Files.Thirdparty.Sharpbox
             if (!string.IsNullOrEmpty(searchText))
                 files = files.Where(x => x.Title.IndexOf(searchText, StringComparison.OrdinalIgnoreCase) != -1);
 
-            return files.ToList();
+            foreach (var f in files)
+            {
+                yield return f;
+            }
         }
 
         public Task<List<string>> GetFiles(string parentId)
@@ -174,9 +177,9 @@ namespace ASC.Files.Thirdparty.Sharpbox
                 .Select(x => MakeId(x)).ToList());
         }
 
-        public Task<List<File<string>>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        public async IAsyncEnumerable<File<string>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
         {
-            if (filterType == FilterType.FoldersOnly) return Task.FromResult(new List<File<string>>());
+            if (filterType == FilterType.FoldersOnly) yield break;
 
             //Get only files
             var files = GetFolderById(parentId).Where(x => !(x is ICloudDirectoryEntry)).Select(ToFile);
@@ -192,7 +195,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
             switch (filterType)
             {
                 case FilterType.FoldersOnly:
-                    return Task.FromResult(new List<File<string>>());
+                    yield break;
                 case FilterType.DocumentsOnly:
                     files = files.Where(x => FileUtility.GetFileTypeByFileName(x.Title) == FileType.Document);
                     break;
@@ -234,7 +237,11 @@ namespace ASC.Files.Thirdparty.Sharpbox
                 SortedByType.DateAndTimeCreation => orderBy.IsAsc ? files.OrderBy(x => x.CreateOn) : files.OrderByDescending(x => x.CreateOn),
                 _ => orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title),
             };
-            return Task.FromResult(files.ToList());
+
+            foreach (var f in files)
+            {
+                yield return f;
+            }
         }
 
         public Stream GetFileStream(File<string> file, long offset)

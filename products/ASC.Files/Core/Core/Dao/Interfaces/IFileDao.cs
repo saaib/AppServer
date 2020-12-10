@@ -100,7 +100,7 @@ namespace ASC.Files.Core
         /// <param name="searchText"></param>
         /// <param name="searchInContent"></param>
         /// <returns></returns>
-        Task<List<File<T>>> GetFilesFiltered(IEnumerable<T> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
+        IAsyncEnumerable<File<T>> GetFilesFiltered(IEnumerable<T> fileIds, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent);
 
         /// <summary>
         /// 
@@ -124,7 +124,7 @@ namespace ASC.Files.Core
         /// <remarks>
         ///    Return only the latest versions of files of a folder
         /// </remarks>
-        Task<List<File<T>>> GetFiles(T parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false);
+        IAsyncEnumerable<File<T>> GetFiles(T parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false);
 
         /// <summary>
         /// Get stream of file

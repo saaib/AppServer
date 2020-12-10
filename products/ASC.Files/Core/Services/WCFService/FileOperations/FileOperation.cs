@@ -243,14 +243,6 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
 
         protected FileSecurity FilesSecurity { get; private set; }
 
-        protected IFolderDao<TId> FolderDao { get; private set; }
-
-        protected IFileDao<TId> FileDao { get; private set; }
-
-        protected ITagDao<TId> TagDao { get; private set; }
-
-        protected IProviderDao ProviderDao { get; private set; }
-
         protected ILog Logger { get; private set; }
 
         protected CancellationToken CancellationToken { get; private set; }
@@ -274,13 +266,13 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             tenantManager.SetCurrentTenant(CurrentTenant);
 
             var daoFactory = scope.ServiceProvider.GetService<IDaoFactory>();
-            FolderDao = daoFactory.GetFolderDao<TId>();
+            var FolderDao = daoFactory.GetFolderDao<TId>();
 
-            Total = InitTotalProgressSteps();
+            Total = InitTotalProgressSteps(FolderDao);
             Source = string.Join(SPLIT_CHAR, Folders.Select(f => "folder_" + f).Concat(Files.Select(f => "file_" + f)).ToArray());
         }
 
-        public override void RunJob(DistributedTask _, CancellationToken cancellationToken)
+        public override async void RunJob(DistributedTask _, CancellationToken cancellationToken)
         {
             try
             {
@@ -292,20 +284,15 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 var (tenantManager, daoFactory, fileSecurity, options) = scopeClass;
                 tenantManager.SetCurrentTenant(CurrentTenant);
 
-
                 Thread.CurrentPrincipal = principal;
                 Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(culture);
                 Thread.CurrentThread.CurrentUICulture = CultureInfo.GetCultureInfo(culture);
 
-                FolderDao = daoFactory.GetFolderDao<TId>();
-                FileDao = daoFactory.GetFileDao<TId>();
-                TagDao = daoFactory.GetTagDao<TId>();
-                ProviderDao = daoFactory.ProviderDao;
                 FilesSecurity = fileSecurity;
 
                 Logger = options.CurrentValue;
 
-                Do(scope);
+                await Do(scope).ConfigureAwait(false);
             }
             catch (AuthorizingException authError)
             {
@@ -349,10 +336,10 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             TaskInfo.SetProperty(SOURCE, Source);
         }
 
-        protected virtual int InitTotalProgressSteps()
+        protected virtual int InitTotalProgressSteps(IFolderDao<TId> folderDao)
         {
             var count = Files.Count;
-            Folders.ForEach(async f => count += 1 + (FolderDao.CanCalculateSubitems(f) ? await FolderDao.GetItemsCount(f) : 0));
+            Folders.ForEach(async f => count += 1 + (folderDao.CanCalculateSubitems(f) ? await folderDao.GetItemsCount(f) : 0));
             return count;
         }
 

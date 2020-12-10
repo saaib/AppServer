@@ -228,7 +228,7 @@ namespace ASC.Files.Thirdparty
 
         protected IQueryable<TSet> Query<TSet>(DbSet<TSet> set) where TSet : class, IDbFile
         {
-            return set.Where(r => r.TenantId == TenantID);
+            return ((IQueryable<TSet>)set).Where(r => r.TenantId == TenantID);
         }
 
         protected string MappingID(string id, bool saveIfNotExist = false)
@@ -242,8 +242,7 @@ namespace ASC.Files.Thirdparty
             }
             else
             {
-                result = FilesDbContext.ThirdpartyIdMapping
-                        
+                result = ((IQueryable<DbFilesThirdpartyIdMapping>)FilesDbContext.ThirdpartyIdMapping)
                         .Where(r => r.HashId == id)
                         .Select(r => r.Id)
                         .FirstOrDefault();
@@ -456,15 +455,15 @@ namespace ASC.Files.Thirdparty
         {
             var folderId = DaoSelector.ConvertId(parentFolder.ID);
 
-            var entryIDs = FilesDbContext.ThirdpartyIdMapping
+            var entryIDs = ((IQueryable<DbFilesThirdpartyIdMapping>)FilesDbContext.ThirdpartyIdMapping)
                        .Where(r => r.Id.StartsWith(parentFolder.ID))
                        .Select(r => r.HashId)
                        .ToList();
 
             if (!entryIDs.Any()) return new List<Tag>();
 
-            var q = FilesDbContext.Tag
-                .Join(FilesDbContext.TagLink.DefaultIfEmpty(),
+            var q = ((IQueryable<DbFilesTag>)FilesDbContext.Tag)
+                .Join(((IQueryable<DbFilesTagLink>)FilesDbContext.TagLink).DefaultIfEmpty(),
                 r => new TagLink { TenantId = r.TenantId, Id = r.Id },
                 r => new TagLink { TenantId = r.TenantId, Id = r.TagId },
                 (tag, tagLink) => new { tag, tagLink },

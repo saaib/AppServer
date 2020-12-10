@@ -64,7 +64,7 @@ namespace ASC.AuditTrail.Data
         {
             var query =
                 (from b in AuditTrailContext.LoginEvents
-                 from p in AuditTrailContext.User.Where(p => b.UserId == p.Id).DefaultIfEmpty()
+                 from p in ((IQueryable<User>)AuditTrailContext.User).Where(p => b.UserId == p.Id).DefaultIfEmpty()
                  where b.TenantId == tenant
                  orderby b.Date descending
                  select new Query { LoginEvents = b, User = p })
@@ -77,7 +77,7 @@ namespace ASC.AuditTrail.Data
         {
             var query =
                 from q in AuditTrailContext.LoginEvents
-                from p in AuditTrailContext.User.Where(p => q.UserId == p.Id).DefaultIfEmpty()
+                from p in ((IQueryable<User>)AuditTrailContext.User).Where(p => q.UserId == p.Id).DefaultIfEmpty()
                 where q.TenantId == tenant
                 where q.Date >= fromDate
                 where q.Date <= to
@@ -89,7 +89,7 @@ namespace ASC.AuditTrail.Data
 
         public int GetCount(int tenant, DateTime? from = null, DateTime? to = null)
         {
-            var query = AuditTrailContext.LoginEvents
+            var query = ((IQueryable<LoginEvents>)AuditTrailContext.LoginEvents)
                 .Where(l => l.TenantId == tenant);
 
             if (from.HasValue && to.HasValue)

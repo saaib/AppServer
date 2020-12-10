@@ -756,18 +756,18 @@ namespace ASC.Files.Core.Security
 
             if (filterType != FilterType.FoldersOnly)
             {
-                var files = await fileDao.GetFilesFiltered(fileIds.Keys.ToArray(), filterType, subjectGroup, subjectID, searchText, searchInContent);
+                var files = fileDao.GetFilesFiltered(fileIds.Keys.ToArray(), filterType, subjectGroup, subjectID, searchText, searchInContent);
 
-                files.ForEach(async x =>
+                await foreach(var x in files)
+                {
+                    if (fileIds.ContainsKey(x.ID))
                     {
-                        if (fileIds.ContainsKey(x.ID))
-                        {
-                            x.Access = fileIds[x.ID];
-                            x.FolderIdDisplay = await GlobalFolder.GetFolderShare<T>(daoFactory);
-                        }
-                    });
+                        x.Access = fileIds[x.ID];
+                        x.FolderIdDisplay = await GlobalFolder.GetFolderShare<T>(daoFactory);
+                    }
 
-                entries.AddRange(files);
+                    entries.Add(x);
+                }
             }
 
             if (filterType == FilterType.None || filterType == FilterType.FoldersOnly)
@@ -875,18 +875,18 @@ namespace ASC.Files.Core.Security
 
             if (filterType != FilterType.FoldersOnly)
             {
-                var files = await fileDao.GetFilesFiltered(fileIds.Keys.ToArray(), filterType, subjectGroup, subjectID, searchText, searchInContent);
+                var files = fileDao.GetFilesFiltered(fileIds.Keys.ToArray(), filterType, subjectGroup, subjectID, searchText, searchInContent);
 
-                files.ForEach(async x =>
+                await foreach(var x in files)
                 {
                     if (fileIds.ContainsKey(x.ID))
                     {
                         x.Access = fileIds[x.ID];
                         x.FolderIdDisplay = await GlobalFolder.GetFolderPrivacy<T>(daoFactory);
                     }
-                });
 
-                entries.AddRange(files);
+                    entries.Add(x);
+                }
             }
 
             if (filterType == FilterType.None || filterType == FilterType.FoldersOnly)

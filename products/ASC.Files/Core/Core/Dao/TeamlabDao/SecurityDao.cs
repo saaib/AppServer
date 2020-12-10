@@ -78,8 +78,7 @@ namespace ASC.Files.Core.Data
 
             foreach (var record in records)
             {
-                var query = FilesDbContext.Security
-                    
+                var query = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                     .Where(r => r.TenantId == record.Tenant)
                     .Where(r => r.EntryId == MappingID(record.EntryId).ToString())
                     .Where(r => r.EntryType == record.EntryType)
@@ -114,8 +113,7 @@ namespace ASC.Files.Core.Data
                         var folders = new List<string>();
                         if (int.TryParse(entryId, out var intEntryId))
                         {
-                            var foldersInt = FilesDbContext.Tree
-                                
+                            var foldersInt = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                                 .Where(r => r.ParentId.ToString() == entryId)
                                 .Select(r => r.FolderId)
                                 .ToList();
@@ -128,8 +126,7 @@ namespace ASC.Files.Core.Data
                             folders.Add(entryId);
                         }
 
-                        var toDelete = FilesDbContext.Security
-                            
+                        var toDelete = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                             .Where(a => a.TenantId == r.Tenant)
                             .Where(a => folders.Any(b => b == a.EntryId))
                             .Where(a => a.EntryType == FileEntryType.Folder)
@@ -146,8 +143,7 @@ namespace ASC.Files.Core.Data
 
                     if (0 < files.Count)
                     {
-                        var toDelete = FilesDbContext.Security
-                            
+                        var toDelete = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                             .Where(a => a.TenantId == r.Tenant)
                             .Where(a => files.Any(b => b == a.EntryId))
                             .Where(a => a.EntryType == FileEntryType.File)
@@ -307,8 +303,8 @@ namespace ASC.Files.Core.Data
         {
             using var tr = FilesDbContext.Database.BeginTransaction();
 
-            var toDelete1 = FilesDbContext.Security.Where(r => r.Subject == subject);
-            var toDelete2 = FilesDbContext.Security.Where(r => r.Owner == subject);
+            var toDelete1 = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security).Where(r => r.Subject == subject);
+            var toDelete2 = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security).Where(r => r.Owner == subject);
 
             FilesDbContext.RemoveRange(toDelete1);
             FilesDbContext.SaveChanges();

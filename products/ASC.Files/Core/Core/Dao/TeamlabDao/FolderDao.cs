@@ -358,7 +358,7 @@ namespace ASC.Files.Core.Data
                 await FilesDbContext.SaveChangesAsync();
 
                 //full path to root
-                var oldTree = FilesDbContext.Tree
+                var oldTree = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.FolderId == folder.FolderID);
 
                 foreach (var o in oldTree)
@@ -404,8 +404,7 @@ namespace ASC.Files.Core.Data
 
             using var tx = FilesDbContext.Database.BeginTransaction();
                 var subfolders = await
-                    FilesDbContext.Tree
-
+                    ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.ParentId == id)
                     .Select(r => r.FolderId)
                     .ToListAsync()
@@ -427,7 +426,7 @@ namespace ASC.Files.Core.Data
                     FactoryIndexer.DeleteAsync(f);
                 }
 
-                var treeToDelete = FilesDbContext.Tree.Where(r => subfolders.Any(a => r.FolderId == a));
+                var treeToDelete = ((IQueryable<DbFolderTree>)FilesDbContext.Tree).Where(r => subfolders.Any(a => r.FolderId == a));
                 FilesDbContext.Tree.RemoveRange(treeToDelete);
 
                 var subfoldersStrings = subfolders.Select(r => r.ToString()).ToList();
@@ -486,8 +485,7 @@ namespace ASC.Files.Core.Data
                     throw new ArgumentException("It is forbidden to move the System folder.", "folderId");
 
                 var recalcFolders = new List<int> { toFolderId };
-                var parent = FilesDbContext.Folders
-
+                var parent = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                     .Where(r => r.Id == folderId)
                     .Select(r => r.ParentId)
                     .FirstOrDefault();
@@ -504,20 +502,17 @@ namespace ASC.Files.Core.Data
 
                 FilesDbContext.SaveChanges();
 
-                var subfolders = FilesDbContext.Tree
-
+                var subfolders = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.ParentId == folderId)
                     .ToDictionary(r => r.FolderId, r => r.Level);
 
-                var toDelete = FilesDbContext.Tree
-
+                var toDelete = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => subfolders.Keys.Any(a => a == r.FolderId) && !subfolders.Keys.Any(a => a == r.ParentId));
 
                 FilesDbContext.Tree.RemoveRange(toDelete);
                 FilesDbContext.SaveChanges();
 
-                var toInsert = FilesDbContext.Tree
-
+                var toInsert = ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                     .Where(r => r.FolderId == toFolderId)
                     .ToList();
 
@@ -727,7 +722,7 @@ namespace ASC.Files.Core.Data
             var count = await Query(FilesDbContext.Files)
                 .AsNoTracking()
                 .Distinct()
-                .Where(r => FilesDbContext.Tree.Where(r => r.ParentId == folderId).Select(r => r.FolderId).Any(b => b == r.FolderId))
+                .Where(r => ((IQueryable<DbFolderTree>)FilesDbContext.Tree).Where(r => r.ParentId == folderId).Select(r => r.FolderId).Any(b => b == r.FolderId))
                 .CountAsync()
                 .ConfigureAwait(false);
 
@@ -777,12 +772,12 @@ namespace ASC.Files.Core.Data
         private void RecalculateFoldersCount(int id)
         {
             var toUpdate = Query(FilesDbContext.Folders)
-                .Where(r => FilesDbContext.Tree.Where(a => a.FolderId == id).Select(a => a.ParentId).Any(a => a == r.Id))
+                .Where(r => ((IQueryable<DbFolderTree>)FilesDbContext.Tree).Where(a => a.FolderId == id).Select(a => a.ParentId).Any(a => a == r.Id))
                 .ToList();
 
             foreach (var f in toUpdate)
             {
-                var count = FilesDbContext.Tree.Where(r => r.ParentId == f.Id).Count() - 1;
+                var count = ((IQueryable<DbFolderTree>)FilesDbContext.Tree).Where(r => r.ParentId == f.Id).Count() - 1;
                 f.FoldersCount = count;
             }
 
@@ -1066,8 +1061,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => new DbFolderQuery
                 {
                     Folder = r,
-                    Root = FilesDbContext.Folders
-
+                    Root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId == r.TenantId)
                             .Where(x => x.tree.FolderId == r.ParentId)
@@ -1075,9 +1069,8 @@ namespace ASC.Files.Core.Data
                             .Select(r => r.folder)
                             .Take(1)
                             .FirstOrDefault(),
-                    Shared = FilesDbContext.Security
+                    Shared = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                             .Where(x => x.TenantId == TenantID)
-
                             .Where(r => r.EntryType == FileEntryType.Folder)
                             .Where(x => x.EntryId == r.Id.ToString())
                             .Any()
@@ -1090,8 +1083,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => new DbFolderQuery
                 {
                     Folder = r,
-                    Root = FilesDbContext.Folders
-
+                    Root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId == r.TenantId)
                             .Where(x => x.tree.FolderId == r.ParentId)
@@ -1201,7 +1193,7 @@ namespace ASC.Files.Core.Data
 
         public IEnumerable<(Folder<int>, SmallShareRecord)> GetFeedsForFolders(int tenant, DateTime from, DateTime to)
         {
-            var q1 = FilesDbContext.Folders
+            var q1 = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                 .Where(r => r.TenantId == tenant)
                 .Where(r => r.FolderType == FolderType.DEFAULT)
                 .Where(r => r.CreateOn >= from && r.ModifiedOn <= to);
@@ -1209,12 +1201,12 @@ namespace ASC.Files.Core.Data
             var q2 = FromQuery(q1)
                 .Select(r => new DbFolderQueryWithSecurity() { DbFolderQuery = r, Security = null });
 
-            var q3 = FilesDbContext.Folders
+            var q3 = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                 .Where(r => r.TenantId == tenant)
                 .Where(r => r.FolderType == FolderType.DEFAULT);
 
             var q4 = FromQuery(q3)
-                .Join(FilesDbContext.Security.DefaultIfEmpty(), r => r.Folder.Id.ToString(), s => s.EntryId, (f, s) => new DbFolderQueryWithSecurity { DbFolderQuery = f, Security = s })
+                .Join(((IQueryable<DbFilesSecurity>)FilesDbContext.Security).DefaultIfEmpty(), r => r.Folder.Id.ToString(), s => s.EntryId, (f, s) => new DbFolderQueryWithSecurity { DbFolderQuery = f, Security = s })
                 .Where(r => r.Security.TenantId == tenant)
                 .Where(r => r.Security.EntryType == FileEntryType.Folder)
                 .Where(r => r.Security.Security == FileShare.Restrict)
@@ -1225,7 +1217,7 @@ namespace ASC.Files.Core.Data
 
         public IEnumerable<int> GetTenantsWithFeedsForFolders(DateTime fromTime)
         {
-            var q1 = FilesDbContext.Files
+            var q1 = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Where(r => r.ModifiedOn > fromTime)
                 .Select(r => r.TenantId)
                 .GroupBy(r => r)
@@ -1233,7 +1225,7 @@ namespace ASC.Files.Core.Data
                 .Select(r => r.Key)
                 .ToList();
 
-            var q2 = FilesDbContext.Security
+            var q2 = ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                 .Where(r => r.TimeStamp > fromTime)
                 .Select(r => r.TenantId)
                 .GroupBy(r => r)

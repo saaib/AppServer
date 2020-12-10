@@ -236,8 +236,7 @@ namespace ASC.Files.Core.Data
 
             if (!cacheTagId.TryGetValue(cacheTagIdKey, out var id))
             {
-                id = FilesDbContext.Tag
-                    
+                id = ((IQueryable<DbFilesTag>)FilesDbContext.Tag)
                     .Where(r => r.Owner == t.Owner)
                     .Where(r => r.Name == t.TagName)
                     .Where(r => r.Flag == t.TagType)
@@ -458,7 +457,7 @@ namespace ASC.Files.Core.Data
             {
                 var shareQuery =
                     new Func<IQueryable<TagLinkData>>(() => getBaseSqlQuery().Where(
-                        r => FilesDbContext.Security
+                        r => ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                         .Where(a => a.TenantId == TenantID)
                         .Where(a => a.EntryId == r.Link.EntryId)
                         .Where(a => a.EntryType == r.Link.EntryType)
@@ -473,8 +472,8 @@ namespace ASC.Files.Core.Data
                     .Select(r => new
                     {
                         r.tagLink,
-                        root = FilesDbContext.Folders
-                            
+                        root = 
+                            ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId == TenantID)
                             .Where(x => x.tree.FolderId == r.file.FolderId)
@@ -498,8 +497,7 @@ namespace ASC.Files.Core.Data
                     .Select(r => new
                     {
                         r.tagLink,
-                        root = FilesDbContext.Folders
-                            
+                        root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId ==TenantID)
                             .Where(x => x.tree.FolderId == r.folder.ParentId)
@@ -536,7 +534,7 @@ namespace ASC.Files.Core.Data
             {
                 var shareQuery =
                     new Func<IQueryable<TagLinkData>>(() => getBaseSqlQuery().Where(
-                        r => FilesDbContext.Security
+                        r => ((IQueryable<DbFilesSecurity>)FilesDbContext.Security)
                         .Where(a => a.TenantId == TenantID)
                         .Where(a => a.EntryId == r.Link.EntryId)
                         .Where(a => a.EntryType == r.Link.EntryType)
@@ -551,7 +549,7 @@ namespace ASC.Files.Core.Data
                     .Select(r => new
                     {
                         r.tagLink,
-                        root = FilesDbContext.Folders
+                        root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                             .Where(x => x.folder.TenantId == TenantID)
                             .Where(x => x.tree.FolderId == r.file.FolderId)
@@ -575,7 +573,7 @@ namespace ASC.Files.Core.Data
                                     .Select(r => new
                                     {
                                         r.tagLink,
-                                        root = FilesDbContext.Folders
+                                        root = ((IQueryable<DbFolder>)FilesDbContext.Folders)
                                             .Join(FilesDbContext.Tree, a => a.Id, b => b.ParentId, (folder, tree) => new { folder, tree })
                                             .Where(x => x.folder.TenantId == TenantID)
                                             .Where(x => x.tree.FolderId == r.folder.ParentId)
@@ -610,8 +608,7 @@ namespace ASC.Files.Core.Data
 
             var monitorFolderIdsInt = monitorFolderIds.Select(r => Convert.ToInt32(r)).ToList();
             var subFoldersSqlQuery =
-                FilesDbContext.Tree
-                
+                ((IQueryable<DbFolderTree>)FilesDbContext.Tree)
                 .Where(r => monitorFolderIdsInt.Any(a => r.ParentId == a));
 
             if (!deepSearch)
@@ -647,8 +644,7 @@ namespace ASC.Files.Core.Data
             {
                 var folderType = parentFolder.FolderType;
 
-                var querySelect = FilesDbContext.ThirdpartyAccount
-                    
+                var querySelect = ((IQueryable<DbFilesThirdpartyAccount>)FilesDbContext.ThirdpartyAccount)
                     .Where(r => r.TenantId == TenantID)
                     .Where(r => r.FolderType == folderType);
 

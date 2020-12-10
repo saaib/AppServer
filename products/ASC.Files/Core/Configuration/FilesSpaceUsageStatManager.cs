@@ -34,6 +34,7 @@ using ASC.Core.Common.EF;
 using ASC.Core.Common.EF.Context;
 using ASC.Core.Users;
 using ASC.Files.Core;
+using ASC.Files.Core.EF;
 using ASC.Files.Core.Resources;
 using ASC.Web.Core;
 using ASC.Web.Core.Users;
@@ -76,8 +77,7 @@ namespace ASC.Web.Files
 
         public override List<UsageSpaceStatItem> GetStatData()
         {
-            var myFiles = FilesDbContext.Files
-                
+            var myFiles = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Join(FilesDbContext.Tree, a => a.FolderId, b => b.FolderId, (file, tree) => new { file, tree })
                 .Join(FilesDbContext.BunchObjects, a => a.tree.ParentId.ToString(), b => b.LeftNode, (fileTree, bunch) => new { fileTree.file, fileTree.tree, bunch })
                 .Where(r => r.file.TenantId == r.bunch.TenantId)
@@ -86,8 +86,7 @@ namespace ASC.Web.Files
                 .GroupBy(r => r.file.CreateBy)
                 .Select(r => new { CreateBy = r.Key, Size = r.Sum(a => a.file.ContentLength) });
 
-            var commonFiles = FilesDbContext.Files
-                
+            var commonFiles = ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Join(FilesDbContext.Tree, a => a.FolderId, b => b.FolderId, (file, tree) => new { file, tree })
                 .Join(FilesDbContext.BunchObjects, a => a.tree.ParentId.ToString(), b => b.LeftNode, (fileTree, bunch) => new { fileTree.file, fileTree.tree, bunch })
                 .Where(r => r.file.TenantId == r.bunch.TenantId)
@@ -142,8 +141,7 @@ namespace ASC.Web.Files
 
         public long GetUserSpaceUsage(Guid userId)
         {
-            return FilesDbContext.Files
-                
+            return ((IQueryable<DbFile>)FilesDbContext.Files)
                 .Join(FilesDbContext.Tree, a => a.FolderId, b => b.FolderId, (file, tree) => new { file, tree })
                 .Join(FilesDbContext.BunchObjects, a => a.tree.ParentId.ToString(), b => b.LeftNode, (fileTree, bunch) => new { fileTree.file, fileTree.tree, bunch })
                 .Where(r => r.file.TenantId == r.bunch.TenantId)

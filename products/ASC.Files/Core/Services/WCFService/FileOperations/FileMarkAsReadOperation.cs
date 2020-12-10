@@ -81,23 +81,25 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
         }
 
 
-        protected override int InitTotalProgressSteps()
+        protected override int InitTotalProgressSteps(IFolderDao<T> folderDao)
         {
             return Files.Count + Folders.Count;
         }
 
         protected override async Task Do(IServiceScope scope)
         {
+            var folderDao = scope.ServiceProvider.GetService<IFolderDao<T>>();
+            var fileDao = scope.ServiceProvider.GetService<IFileDao<T>>();
             var scopeClass = scope.ServiceProvider.GetService<FileMarkAsReadOperationScope>();
             var (fileMarker, globalFolder, daoFactory, settingsManager) = scopeClass;
             var entries = new List<FileEntry<T>>();
             if (Folders.Any())
             {
-                entries.AddRange(await FolderDao.GetFolders(Folders));
+                entries.AddRange(await folderDao.GetFolders(Folders));
             }
             if (Files.Any())
             {
-                entries.AddRange(await FileDao.GetFiles(Files));
+                entries.AddRange(await fileDao.GetFiles(Files));
             }
             entries.ForEach(async x =>
             {

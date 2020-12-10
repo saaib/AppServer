@@ -418,7 +418,7 @@ namespace ASC.Web.Files.Utils
                 folders = await fileSecurity.FilterRead(folders);
                 entries = entries.Concat(folders);
 
-                var files = (await fileDao.GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders)).Cast<File<T>>();
+                var files = (await fileDao.GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders).ToListAsync()).Cast<File<T>>();
                 files = await fileSecurity.FilterRead(files);
                 entries = entries.Concat(files);
 
@@ -441,7 +441,8 @@ namespace ASC.Web.Files.Utils
 
 
                 var files = await DaoFactory.GetFileDao<T>()
-                    .GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders);
+                    .GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders)
+                    .ToListAsync();
                 entries = entries.Concat(await fileSecurity.FilterRead(files));
 
                 if (filter == FilterType.None || filter == FilterType.FoldersOnly)
@@ -485,7 +486,7 @@ namespace ASC.Web.Files.Utils
 
             var fileIds = tags.Where(tag => tag.EntryType == FileEntryType.File).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToArray();
 
-            var files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
+            var files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent).ToListAsync();
             files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
 
             files = (await FileSecurity.FilterRead(files)).ToList();
@@ -534,7 +535,7 @@ namespace ASC.Web.Files.Utils
             var tags = tagDao.GetTags(AuthContext.CurrentAccount.ID, TagType.Recent).ToList();
 
             var fileIds = tags.Where(tag => tag.EntryType == FileEntryType.File).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToArray();
-            var files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
+            var files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent).ToListAsync();
             files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
 
             files = (await FileSecurity.FilterRead(files)).ToList();
@@ -565,7 +566,7 @@ namespace ASC.Web.Files.Utils
             if (filter != FilterType.FoldersOnly)
             {
                 var fileIds = tags.Where(tag => tag.EntryType == FileEntryType.File).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToArray();
-                files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
+                files = await fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent).ToListAsync();
                 files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
 
                 files = (await fileSecurity.FilterRead(files)).ToList();
@@ -1152,7 +1153,7 @@ namespace ASC.Web.Files.Utils
                 await folderDao.DeleteFolder(folder.ID);
             }
 
-            var files = await fileDao.GetFiles(parentId, null, FilterType.None, false, Guid.Empty, string.Empty, true);
+            var files = await fileDao.GetFiles(parentId, null, FilterType.None, false, Guid.Empty, string.Empty, true).ToListAsync();
             foreach (var file in files)
             {
                 Logger.InfoFormat("Delete file {0} in {1}", file.ID, parentId);
@@ -1180,7 +1181,7 @@ namespace ASC.Web.Files.Utils
                 }
             }
 
-            var files = (await fileDao.GetFiles(parentId, null, FilterType.None, false, Guid.Empty, string.Empty, true))
+            var files = (await fileDao.GetFiles(parentId, null, FilterType.None, false, Guid.Empty, string.Empty, true).ToListAsync())
                 .Where(file => file.Shared &&
                 fileSecurity.GetShares(file).Any(record => record.Subject != FileConstant.ShareLinkId && record.Share != FileShare.Restrict));
 
@@ -1193,7 +1194,7 @@ namespace ASC.Web.Files.Utils
 
         public static async Task ReassignItems<T>(T parentId, Guid fromUserId, Guid toUserId, IFolderDao<T> folderDao, IFileDao<T> fileDao)
         {
-            var fileIds = (await fileDao.GetFiles(parentId, new OrderBy(SortedByType.AZ, true), FilterType.ByUser, false, fromUserId, null, true, true))
+            var fileIds = (await fileDao.GetFiles(parentId, new OrderBy(SortedByType.AZ, true), FilterType.ByUser, false, fromUserId, null, true, true).ToListAsync())
                                  .Where(file => file.CreateBy == fromUserId).Select(file => file.ID);
 
             fileDao.ReassignFiles(fileIds.ToArray(), toUserId);
