@@ -1765,9 +1765,9 @@ namespace ASC.Api.Documents
         }
 
         [Update("{fileId:int}/setacelink")]
-        public bool SetAceLink(int fileId, [FromBody] GenerateSharedLinkModel model)
+        public async Task<bool> SetAceLink(int fileId, [FromBody] GenerateSharedLinkModel model)
         {
-            return FilesControllerHelperInt.SetAceLink(fileId, model.Share);
+            return await FilesControllerHelperInt.SetAceLink(fileId, model.Share);
         }
 
         /// <summary>
