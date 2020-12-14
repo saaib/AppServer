@@ -29,9 +29,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
+using Confluent.Kafka;
+
+using Google.Protobuf;
+
 namespace ASC.Core.Caching
 {
-    class UserGroupRefStore : IDictionary<string, UserGroupRef>
+    class UserGroupRefStore : IDictionary<string, UserGroupRef>, ISerializer<UserGroupRefStore>, IDeserializer<UserGroupRefStore>
     {
         private readonly IDictionary<string, UserGroupRef> refs;
         private ILookup<Guid, UserGroupRef> index;
@@ -153,6 +157,35 @@ namespace ASC.Core.Caching
         private void RebuildIndex()
         {
             changed = true;
+        }
+
+        public byte[] Serialize(UserGroupRefStore data, SerializationContext context)
+        {
+            return ((UserGroupRefStoreCacheItem) data).ToByteArray();
+        }
+
+        public UserGroupRefStore Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+        {
+            var parser = new MessageParser<UserGroupRefStoreCacheItem>(() => new UserGroupRefStoreCacheItem());
+            return (UserGroupRefStore)(parser.ParseFrom(data.ToArray()));
+        }
+
+        public static implicit operator UserGroupRefStore(UserGroupRefStoreCacheItem cache)
+        {
+            var resultDictoinary = new Dictionary<string, UserGroupRef>();
+            foreach(var i in cache.Refs)
+            {
+                resultDictoinary.Add(i.Key, i.Value);
+            }
+            var result = new UserGroupRefStore(resultDictoinary);
+            return result;
+        }
+
+        public static implicit operator UserGroupRefStoreCacheItem(UserGroupRefStore origin)
+        {
+            var result = new UserGroupRefStoreCacheItem();
+            result.Refs.Add((IDictionary<string, UserGroupRefCacheItem>)origin.refs);
+            return result;
         }
     }
 }

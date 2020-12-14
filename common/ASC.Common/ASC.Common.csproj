@@ -27,6 +27,9 @@
     <Compile Remove="Tests\Logging\SpecialFolderPathConverterTest.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Remove="protos\UserInfoCache.proto" />
+  </ItemGroup>
+  <ItemGroup>
     <PackageReference Include="ARSoft.Tools.NetStandard.DXSdata" Version="1.0.0" />
     <PackageReference Include="Autofac" Version="6.0.0" />
     <PackageReference Include="Autofac.Configuration" Version="6.0.0" />
@@ -47,6 +50,7 @@
     <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="3.1.9" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="2.2.5" />
     <PackageReference Include="Microsoft.AspNetCore.WebUtilities" Version="2.2.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Abstractions" Version="5.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="3.1.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Binder" Version="3.1.9" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="3.1.9" />
@@ -68,6 +72,7 @@
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup>
+    <Protobuf Include="protos\UserInfoCache.proto" />
     <Protobuf Include="protos\AscCacheItem.proto" />
     <Protobuf Include="protos\NotifyItem.proto" />
     <Protobuf Include="protos\DistributedTaskCache.proto" />

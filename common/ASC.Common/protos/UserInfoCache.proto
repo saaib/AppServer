@@ -1,0 +1,33 @@
+﻿syntax = "proto3";
+import "google/protobuf/timestamp.proto";
+package ASC.Common;
+
+message UserInfoCache {
+
+        bytes ID =1;
+        string FirstName=2;
+        string LastName =3;
+        string UserName =4;
+        google.protobuf.Timestamp BirthDate =5;
+        bool Sex =6;
+        int32 Status =7;
+        int32 ActivationStatus =8;
+        google.protobuf.Timestamp TerminatedDate =9;
+        string Title =10;
+        google.protobuf.Timestamp WorkFromDate =11;
+        string Email =12;
+        string contacts=13;
+        repeated string  ContactsList =14;
+        string Location =15;
+        string Notes =16;
+        bool Removed =17;
+        google.protobuf.Timestamp LastModified =18;
+        int32 Tenant =19;
+        string CultureName =20;
+        string MobilePhone =21;
+        int32 MobilePhoneActivationStatus =22;
+        string Sid =23;
+        string SsoNameId =24;
+        string SsoSessionId =25;
+        google.protobuf.Timestamp CreateDate =26;
+}

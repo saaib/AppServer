@@ -29,12 +29,19 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
+using ASC.Common;
+using ASC.Common.Caching;
 using ASC.Notify.Recipients;
+
+using Confluent.Kafka;
+
+using Google.Protobuf;
+//using Google.Protobuf.WellKnownTypes;
 
 namespace ASC.Core.Users
 {
     [Serializable]
-    public sealed class UserInfo : IDirectRecipient, ICloneable
+    public sealed class UserInfo : IDirectRecipient, ICloneable, ISerializer<UserInfo>, IDeserializer<UserInfo>
     {
         public UserInfo()
         {
@@ -189,6 +196,85 @@ namespace ASC.Core.Users
             ContactsList.AddRange(contacts.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries));
 
             return this;
+        }
+
+        public static implicit operator UserInfo(UserInfoCache cache)
+        {
+            var result = new UserInfo
+            {
+                ActivationStatus = (EmployeeActivationStatus)cache.ActivationStatus,
+                BirthDate = cache.BirthDate.ToDateTime(),
+                Contacts = cache.Contacts,
+                CreateDate = cache.CreateDate.ToDateTime(),
+                CultureName = cache.CultureName,
+                Email = cache.Email,
+                FirstName = cache.FirstName,
+                ID = cache.ID.FromByteString(),
+                LastModified = cache.LastModified.ToDateTime(),
+                LastName = cache.LastName,
+                Location = cache.Location,
+                MobilePhone = cache.MobilePhone,
+                MobilePhoneActivationStatus = (MobilePhoneActivationStatus)cache.MobilePhoneActivationStatus,
+                Notes = cache.Notes,
+                Removed = cache.Removed,
+                Sex = cache.Sex,
+                Sid = cache.Sid,
+                SsoNameId = cache.SsoNameId,
+                SsoSessionId = cache.SsoSessionId,
+                Status = (EmployeeStatus)cache.Status,
+                Tenant = cache.Tenant,
+                TerminatedDate = cache.TerminatedDate.ToDateTime(),
+                Title = cache.Title,
+                UserName = cache.UserName,
+                WorkFromDate = cache.WorkFromDate.ToDateTime()
+            };
+            result.ContactsList = new List<string>(cache.ContactsList.Count);
+            result.ContactsList.AddRange(cache.ContactsList);
+            return result;
+        }
+
+        public static implicit operator UserInfoCache(UserInfo origin)
+        {
+            var result = new UserInfoCache
+            {
+                ActivationStatus = (int)origin.ActivationStatus,
+                BirthDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.BirthDate ?? default), //TODO: Design nullable Protobuf Timestamp
+                Contacts = origin.Contacts,
+                CreateDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.CreateDate),
+                CultureName = origin.CultureName,
+                Email = origin.Email,
+                FirstName = origin.FirstName,
+                ID = origin.ID.ToByteString(),
+                LastModified = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.LastModified),
+                LastName = origin.LastName,
+                Location = origin.Location,
+                MobilePhone = origin.MobilePhone,
+                MobilePhoneActivationStatus = (int)origin.MobilePhoneActivationStatus,
+                Notes = origin.Notes,
+                Removed = origin.Removed,
+                Sex = (bool)origin.Sex,
+                Sid = origin.Sid,
+                SsoNameId = origin.SsoNameId,
+                SsoSessionId = origin.SsoSessionId,
+                Status = (int)origin.Status,
+                Tenant = origin.Tenant,
+                TerminatedDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.TerminatedDate ?? default),
+                Title = origin.Title,
+                UserName = origin.UserName,
+                WorkFromDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.WorkFromDate ?? default)
+            };
+            result.ContactsList.AddRange(origin.ContactsList);
+            return result;
+        }
+        public byte[] Serialize(UserInfo data, SerializationContext context)
+        {
+            return ((UserInfoCache)data).ToByteArray();
+        }
+
+        public UserInfo Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+        {
+            var parser = new MessageParser<UserInfoCache>(() => new UserInfoCache());
+            return (UserInfo)(parser.ParseFrom(data.ToArray()));
         }
     }
 }

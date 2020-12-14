@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -41,7 +42,7 @@ namespace ASC.Api.Core
         public virtual void ConfigureServices(IServiceCollection services)
         {
             services.AddHttpContextAccessor();
-
+            services.AddDistributedMemoryCache();
             DIHelper.Configure(services);
 
             if (AddControllers)
@@ -71,7 +72,6 @@ namespace ASC.Api.Core
             DIHelper.TryAdd<ProductSecurityFilter>();
             DIHelper.TryAdd<TenantStatusFilter>();
             DIHelper.TryAdd<ConfirmAuthHandler>();
-
             DIHelper.TryAdd(typeof(ICacheNotify<>), typeof(KafkaCache<>));
 
             var builder = services.AddMvcCore(config =>

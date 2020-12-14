@@ -10,3 +10,6 @@ message UserGroupRefCacheItem {
     int64 LastModified  = 5;
     int32 Tenant  = 6;
 }
+message UserGroupRefStoreCacheItem {
+    map<string, UserGroupRefCacheItem> Refs = 1;
+}

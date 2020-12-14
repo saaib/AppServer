@@ -32,11 +32,13 @@ using System.Threading;
 
 using ASC.Common;
 using ASC.Common.Caching;
+using ASC.Common.Logging;
 using ASC.Core.Common.EF;
 using ASC.Core.Data;
 using ASC.Core.Tenants;
 using ASC.Core.Users;
 
+using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 
 namespace ASC.Core.Caching
@@ -61,10 +63,13 @@ namespace ASC.Core.Caching
             ICacheNotify<UserInfoCacheItem> cacheUserInfoItem,
             ICacheNotify<UserPhotoCacheItem> cacheUserPhotoItem,
             ICacheNotify<GroupCacheItem> cacheGroupCacheItem,
-            ICacheNotify<UserGroupRefCacheItem> cacheUserGroupRefItem)
+            ICacheNotify<UserGroupRefCacheItem> cacheUserGroupRefItem,
+            IDistributedCache cache,
+            IOptionsMonitor<ILog> options)
         {
             TrustInterval = new TrustInterval();
-            Cache = AscCache.Memory;
+            Cache = AscCache.Memory;//  new DistributedCache(cache, options);//For memory based chache use AscCache.Memory;
+            options.CurrentValue.Error("DistributedCache Created");
             CoreBaseSettings = coreBaseSettings;
             CacheUserInfoItem = cacheUserInfoItem;
             CacheUserPhotoItem = cacheUserPhotoItem;
