@@ -6,7 +6,6 @@ using System.Text.RegularExpressions;
 using ASC.Common.Logging;
 using Google.Protobuf;
 using Confluent.Kafka;
-
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -31,7 +30,9 @@ namespace ASC.Common.Caching
         }
         public T Get<T>(string key)  where T : class 
         {
+
             var binatyData=cache.Get(key);
+            //if(key.Contains("user")) return UserInfo.GetUserInfoFromBytes
             if (binatyData == null)
             {
                 Console.WriteLine($"DistributedCache. Get ({key}) No data.");

@@ -27,9 +27,6 @@
     <Compile Remove="Tests\Logging\SpecialFolderPathConverterTest.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Remove="protos\UserInfoCache.proto" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="ARSoft.Tools.NetStandard.DXSdata" Version="1.0.0" />
     <PackageReference Include="Autofac" Version="6.0.0" />
     <PackageReference Include="Autofac.Configuration" Version="6.0.0" />
@@ -72,7 +69,6 @@
     <PackageReference Include="System.Runtime.Loader" Version="4.3.0" />
   </ItemGroup>
   <ItemGroup>
-    <Protobuf Include="protos\UserInfoCache.proto" />
     <Protobuf Include="protos\AscCacheItem.proto" />
     <Protobuf Include="protos\NotifyItem.proto" />
     <Protobuf Include="protos\DistributedTaskCache.proto" />

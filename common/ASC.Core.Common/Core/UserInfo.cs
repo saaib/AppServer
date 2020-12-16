@@ -41,101 +41,199 @@ using Google.Protobuf;
 namespace ASC.Core.Users
 {
     [Serializable]
-    public sealed class UserInfo : IDirectRecipient, ICloneable, ISerializer<UserInfo>, IDeserializer<UserInfo>
+    public sealed partial class UserInfo : IDirectRecipient//, ICloneable
     {
-        public UserInfo()
+        partial void OnConstruction()
         {
             Status = EmployeeStatus.Active;
-            ActivationStatus = EmployeeActivationStatus.NotActivated;
+            ActivationStatus = (int)EmployeeActivationStatus.NotActivated;
             LastModified = DateTime.UtcNow;
         }
 
 
-        public Guid ID { get; set; }
-
-        public string FirstName { get; set; }
-
-        public string LastName { get; set; }
-
-        public string UserName { get; set; }
-
-        public DateTime? BirthDate { get; set; }
-
-        public bool? Sex { get; set; }
-
-        public EmployeeStatus Status { get; set; }
-
-        public EmployeeActivationStatus ActivationStatus { get; set; }
-
-        public DateTime? TerminatedDate { get; set; }
-
-        public string Title { get; set; }
-
-        public DateTime? WorkFromDate { get; set; }
-
-        public string Email { get; set; }
-
-        private string contacts;
-        public string Contacts
-        {
-            get => contacts;
+        public Guid ID { get
+            {
+                return IDProto.FromByteString();
+            }
             set
             {
-                contacts = value;
-                ContactsFromString(contacts);
+                IDProto = value.ToByteString();
             }
         }
 
-        public List<string> ContactsList { get; set; }
+        //public string FirstName { get; set; }
 
-        public string Location { get; set; }
+        //public string LastName { get; set; }
 
-        public string Notes { get; set; }
+        //public string UserName { get; set; }
 
-        public bool Removed { get; set; }
+        public DateTime? BirthDate
+        {
+            get
+            {
+                return BirthDateProto.ToDateTime();
+            }
+            set
+            {
+                BirthDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value ?? default);
+            }
+        }
 
-        public DateTime LastModified { get; set; }
+        public bool? Sex { 
+            get
+            {
+                if (SexIsNull) return null;
+                else return SexProto;
+            }
+            set
+            {
+                SexIsNull = !value.HasValue;
+                SexProto = value ?? default;
+            }
+        }
 
-        public int Tenant { get; set; }
+        public EmployeeStatus Status {
+            get
+            {
+                return (EmployeeStatus)StatusProto;
+            }
+            set
+            {
+                StatusProto = (int)value;
+            }
+        }
+
+        public EmployeeActivationStatus ActivationStatus
+        {
+            get
+            {
+                return (EmployeeActivationStatus)ActivationStatusProto;
+            }
+            set
+            {
+                ActivationStatusProto = (int)value;
+            }
+        }
+
+        public DateTime? TerminatedDate
+        {
+            get
+            {
+                return TerminatedDateProto.ToDateTime();
+            }
+            set
+            {
+                TerminatedDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value??default);
+            }
+        }
+
+        //public string Title { get; set; }
+
+        public DateTime? WorkFromDate
+        {
+            get
+            {
+                return WorkFromDateProto.ToDateTime();
+            }
+            set
+            {
+                WorkFromDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value ?? default);
+            }
+        }
+
+        //public string Email { get; set; }
+
+        //private string contacts;
+        //public string Contacts
+        //{
+        //    get => contacts;
+        //    set
+        //    {
+        //        contacts = value;
+        //        ContactsFromString(contacts);
+        //    }
+        //}
+
+        //public List<string> ContactsList { get; set; }
+
+        //public string Location { get; set; }
+
+        //public string Notes { get; set; }
+
+        //public bool Removed { get; set; }
+
+        public DateTime LastModified 
+        {
+            get
+            {
+                return LastModifiedProto.ToDateTime();
+            }
+            set
+            {
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value); 
+            }
+        }
+
+        //public int Tenant { get; set; }
 
         public bool IsActive
         {
-            get { return ActivationStatus.HasFlag(EmployeeActivationStatus.Activated); }
+            get { return ((EmployeeActivationStatus)ActivationStatus).HasFlag(EmployeeActivationStatus.Activated); }
         }
 
-        public string CultureName { get; set; }
+        //public string CultureName { get; set; }
 
-        public string MobilePhone { get; set; }
+        //public string MobilePhone { get; set; }
 
-        public MobilePhoneActivationStatus MobilePhoneActivationStatus { get; set; }
-
-        public string Sid { get; set; } // LDAP user identificator
-
-        public string SsoNameId { get; set; } // SSO SAML user identificator
-
-        public string SsoSessionId { get; set; } // SSO SAML user session identificator
-
-        public DateTime CreateDate { get; set; }
-
-        public override string ToString()
+        public MobilePhoneActivationStatus MobilePhoneActivationStatus
         {
-            return string.Format("{0} {1}", FirstName, LastName).Trim();
+            get
+            {
+                return (MobilePhoneActivationStatus)MobilePhoneActivationStatusProto;
+            }
+            set
+            {
+                MobilePhoneActivationStatusProto = (int)value;
+            }
         }
 
-        public override int GetHashCode()
+        //public string Sid { get; set; } // LDAP user identificator
+
+        //public string SsoNameId { get; set; } // SSO SAML user identificator
+
+        //public string SsoSessionId { get; set; } // SSO SAML user session identificator
+
+        public DateTime CreateDate
         {
-            return ID.GetHashCode();
+            get
+            {
+                return LastModifiedProto.ToDateTime();
+            }
+            set
+            {
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value);
+            }
         }
 
-        public override bool Equals(object obj)
-        {
-            return obj is UserInfo ui && ID.Equals(ui.ID);
-        }
+        //public override string ToString()
+        //{
+        //    return string.Format("{0} {1}", FirstName, LastName).Trim();
+        //}
 
-        public bool Equals(UserInfo obj)
-        {
-            return obj != null && ID.Equals(obj.ID);
-        }
+        //public override int GetHashCode()
+        //{
+        //    return ID.GetHashCode();
+        //}
+
+        //public override bool Equals(object obj)
+        //{
+        //    return obj is UserInfo ui && ID.Equals(ui.ID);
+        //}
+
+        //public bool Equals(UserInfo obj)
+        //{
+        //    return obj != null && ID.Equals(obj.ID);
+        //}
 
         public CultureInfo GetCulture()
         {
@@ -160,13 +258,13 @@ namespace ASC.Core.Users
 
         string IRecipient.Name
         {
-            get { return ToString(); }
+            get { return this.ToString(); }
         }
 
-        public object Clone()
-        {
-            return MemberwiseClone();
-        }
+        //public object Clone()
+        //{
+        //    return MemberwiseClone();
+        //}
 
 
         internal string ContactsToString()
@@ -184,97 +282,90 @@ namespace ASC.Core.Users
         {
             if (string.IsNullOrEmpty(contacts)) return this;
 
-            if (ContactsList == null)
-            {
-                ContactsList = new List<string>();
-            }
-            else
-            {
-                ContactsList.Clear();
-            }
+            ContactsList.Clear();
 
             ContactsList.AddRange(contacts.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries));
 
             return this;
         }
 
-        public static implicit operator UserInfo(UserInfoCache cache)
-        {
-            var result = new UserInfo
-            {
-                ActivationStatus = (EmployeeActivationStatus)cache.ActivationStatus,
-                BirthDate = cache.BirthDate.ToDateTime(),
-                Contacts = cache.Contacts,
-                CreateDate = cache.CreateDate.ToDateTime(),
-                CultureName = cache.CultureName,
-                Email = cache.Email,
-                FirstName = cache.FirstName,
-                ID = cache.ID.FromByteString(),
-                LastModified = cache.LastModified.ToDateTime(),
-                LastName = cache.LastName,
-                Location = cache.Location,
-                MobilePhone = cache.MobilePhone,
-                MobilePhoneActivationStatus = (MobilePhoneActivationStatus)cache.MobilePhoneActivationStatus,
-                Notes = cache.Notes,
-                Removed = cache.Removed,
-                Sex = cache.Sex,
-                Sid = cache.Sid,
-                SsoNameId = cache.SsoNameId,
-                SsoSessionId = cache.SsoSessionId,
-                Status = (EmployeeStatus)cache.Status,
-                Tenant = cache.Tenant,
-                TerminatedDate = cache.TerminatedDate.ToDateTime(),
-                Title = cache.Title,
-                UserName = cache.UserName,
-                WorkFromDate = cache.WorkFromDate.ToDateTime()
-            };
-            result.ContactsList = new List<string>(cache.ContactsList.Count);
-            result.ContactsList.AddRange(cache.ContactsList);
-            return result;
-        }
+        //public static implicit operator UserInfo(UserInfoCache cache)
+        //{
+        //    var result = new UserInfo
+        //    {
+        //        ActivationStatus = (EmployeeActivationStatus)cache.ActivationStatus,
+        //        BirthDate = cache.BirthDate.ToDateTime(),
+        //        Contacts = cache.Contacts,
+        //        CreateDate = cache.CreateDate.ToDateTime(),
+        //        CultureName = cache.CultureName,
+        //        Email = cache.Email,
+        //        FirstName = cache.FirstName,
+        //        ID = cache.ID.FromByteString(),
+        //        LastModified = cache.LastModified.ToDateTime(),
+        //        LastName = cache.LastName,
+        //        Location = cache.Location,
+        //        MobilePhone = cache.MobilePhone,
+        //        MobilePhoneActivationStatus = (MobilePhoneActivationStatus)cache.MobilePhoneActivationStatus,
+        //        Notes = cache.Notes,
+        //        Removed = cache.Removed,
+        //        Sex = cache.Sex,
+        //        Sid = cache.Sid,
+        //        SsoNameId = cache.SsoNameId,
+        //        SsoSessionId = cache.SsoSessionId,
+        //        Status = (EmployeeStatus)cache.Status,
+        //        Tenant = cache.Tenant,
+        //        TerminatedDate = cache.TerminatedDate.ToDateTime(),
+        //        Title = cache.Title,
+        //        UserName = cache.UserName,
+        //        WorkFromDate = cache.WorkFromDate.ToDateTime()
+        //    };
+        //    result.ContactsList = new List<string>(cache.ContactsList.Count);
+        //    result.ContactsList.AddRange(cache.ContactsList);
+        //    return result;
+        //}
 
-        public static implicit operator UserInfoCache(UserInfo origin)
-        {
-            var result = new UserInfoCache
-            {
-                ActivationStatus = (int)origin.ActivationStatus,
-                BirthDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.BirthDate ?? default), //TODO: Design nullable Protobuf Timestamp
-                Contacts = origin.Contacts,
-                CreateDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.CreateDate),
-                CultureName = origin.CultureName,
-                Email = origin.Email,
-                FirstName = origin.FirstName,
-                ID = origin.ID.ToByteString(),
-                LastModified = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.LastModified),
-                LastName = origin.LastName,
-                Location = origin.Location,
-                MobilePhone = origin.MobilePhone,
-                MobilePhoneActivationStatus = (int)origin.MobilePhoneActivationStatus,
-                Notes = origin.Notes,
-                Removed = origin.Removed,
-                Sex = (bool)origin.Sex,
-                Sid = origin.Sid,
-                SsoNameId = origin.SsoNameId,
-                SsoSessionId = origin.SsoSessionId,
-                Status = (int)origin.Status,
-                Tenant = origin.Tenant,
-                TerminatedDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.TerminatedDate ?? default),
-                Title = origin.Title,
-                UserName = origin.UserName,
-                WorkFromDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.WorkFromDate ?? default)
-            };
-            result.ContactsList.AddRange(origin.ContactsList);
-            return result;
-        }
-        public byte[] Serialize(UserInfo data, SerializationContext context)
-        {
-            return ((UserInfoCache)data).ToByteArray();
-        }
+        //public static implicit operator UserInfoCache(UserInfo origin)
+        //{
+        //    var result = new UserInfoCache
+        //    {
+        //        ActivationStatus = (int)origin.ActivationStatus,
+        //        BirthDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.BirthDate ?? default), //TODO: Design nullable Protobuf Timestamp
+        //        Contacts = origin.Contacts,
+        //        CreateDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.CreateDate),
+        //        CultureName = origin.CultureName,
+        //        Email = origin.Email,
+        //        FirstName = origin.FirstName,
+        //        ID = origin.ID.ToByteString(),
+        //        LastModified = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.LastModified),
+        //        LastName = origin.LastName,
+        //        Location = origin.Location,
+        //        MobilePhone = origin.MobilePhone,
+        //        MobilePhoneActivationStatus = (int)origin.MobilePhoneActivationStatus,
+        //        Notes = origin.Notes,
+        //        Removed = origin.Removed,
+        //        Sex = (bool)origin.Sex,
+        //        Sid = origin.Sid,
+        //        SsoNameId = origin.SsoNameId,
+        //        SsoSessionId = origin.SsoSessionId,
+        //        Status = (int)origin.Status,
+        //        Tenant = origin.Tenant,
+        //        TerminatedDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.TerminatedDate ?? default),
+        //        Title = origin.Title,
+        //        UserName = origin.UserName,
+        //        WorkFromDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.WorkFromDate ?? default)
+        //    };
+        //    result.ContactsList.AddRange(origin.ContactsList);
+        //    return result;
+        //}
+        //public byte[] Serialize(UserInfo data, SerializationContext context)
+        //{
+        //    return ((UserInfo)data).ToByteArray();
+        //}
 
-        public UserInfo Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
-        {
-            var parser = new MessageParser<UserInfoCache>(() => new UserInfoCache());
-            return (UserInfo)(parser.ParseFrom(data.ToArray()));
-        }
+        //public UserInfo Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
+        //{
+        //    var parser = new MessageParser<UserInfo>(() => new UserInfo());
+        //    return (UserInfo)(parser.ParseFrom(data.ToArray()));
+        //}
     }
 }

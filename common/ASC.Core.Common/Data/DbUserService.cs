@@ -100,7 +100,7 @@ namespace ASC.Core.Data
                 MobilePhoneActivationStatus = user.PhoneActivation,
                 Notes = user.Notes,
                 Removed = user.Removed,
-                Sex = user.Sex,
+                Sex = user.Sex??false, //TODO:Create nullable protobuf sex
                 Sid = user.Sid,
                 SsoNameId = user.SsoNameId,
                 SsoSessionId = user.SsoSessionId,

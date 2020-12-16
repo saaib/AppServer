@@ -43,6 +43,7 @@
     <None Remove="protos\TenantCacheItem.proto" />
     <None Remove="protos\TenantSetting.proto" />
     <None Remove="protos\UserGroupRefCacheItem.proto" />
+    <None Remove="protos\UserInfo.proto" />
     <None Remove="protos\UserInfoCacheItem.proto" />
     <None Remove="protos\UserPhotoCacheItem.proto" />
   </ItemGroup>
@@ -74,6 +75,7 @@
     <Protobuf Include="protos\TenantCacheItem.proto" />
     <Protobuf Include="protos\GroupCacheItem.proto" />
     <Protobuf Include="protos\UserGroupRefCacheItem.proto" />
+    <Protobuf Include="protos\UserInfo.proto" />
     <Protobuf Include="protos\UserInfoCacheItem.proto" />
     <Protobuf Include="protos\UserPhotoCacheItem.proto" />
     <Protobuf Include="protos\TenantSetting.proto" />

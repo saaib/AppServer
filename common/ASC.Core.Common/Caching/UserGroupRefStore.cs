@@ -41,7 +41,6 @@ namespace ASC.Core.Caching
         private ILookup<Guid, UserGroupRef> index;
         private bool changed;
 
-
         public UserGroupRefStore(IDictionary<string, UserGroupRef> refs)
         {
             this.refs = refs;
@@ -186,6 +185,11 @@ namespace ASC.Core.Caching
             var result = new UserGroupRefStoreCacheItem();
             result.Refs.Add((IDictionary<string, UserGroupRefCacheItem>)origin.refs);
             return result;
+        }
+        public static UserGroupRefStore GetUserGroupRefStoreFromBytes(ReadOnlySpan<byte> data)
+        {
+            var parser = new MessageParser<UserGroupRefStoreCacheItem>(() => new UserGroupRefStoreCacheItem());
+            return (UserGroupRefStore)(parser.ParseFrom(data.ToArray()));
         }
     }
 }
