@@ -53,17 +53,9 @@ namespace ASC.Core.Caching
         public TrustInterval TrustInterval { get; set; }
         public ICache Cache { get; }
         internal CoreBaseSettings CoreBaseSettings { get; }
-        internal ICacheNotify<UserInfoCacheItem> CacheUserInfoItem { get; }
-        internal ICacheNotify<UserPhotoCacheItem> CacheUserPhotoItem { get; }
-        internal ICacheNotify<GroupCacheItem> CacheGroupCacheItem { get; }
-        internal ICacheNotify<UserGroupRefCacheItem> CacheUserGroupRefItem { get; }
 
         public UserServiceCache(
             CoreBaseSettings coreBaseSettings,
-            ICacheNotify<UserInfoCacheItem> cacheUserInfoItem,
-            ICacheNotify<UserPhotoCacheItem> cacheUserPhotoItem,
-            ICacheNotify<GroupCacheItem> cacheGroupCacheItem,
-            ICacheNotify<UserGroupRefCacheItem> cacheUserGroupRefItem,
             IDistributedCache cache,
             IOptionsMonitor<ILog> options)
         {
@@ -71,29 +63,16 @@ namespace ASC.Core.Caching
             Cache = AscCache.Memory;//  new DistributedCache(cache, options);//For memory based chache use AscCache.Memory;
             options.CurrentValue.Error("DistributedCache Created");
             CoreBaseSettings = coreBaseSettings;
-            CacheUserInfoItem = cacheUserInfoItem;
-            CacheUserPhotoItem = cacheUserPhotoItem;
-            CacheGroupCacheItem = cacheGroupCacheItem;
-            CacheUserGroupRefItem = cacheUserGroupRefItem;
-
-            cacheUserInfoItem.Subscribe((u) => InvalidateCache(u), CacheNotifyAction.Any);
-            cacheUserPhotoItem.Subscribe((p) => Cache.Remove(p.Key), CacheNotifyAction.Remove);
-            cacheGroupCacheItem.Subscribe((g) => InvalidateCache(), CacheNotifyAction.Any);
-
-            cacheUserGroupRefItem.Subscribe((r) => UpdateUserGroupRefCache(r, true), CacheNotifyAction.Remove);
-            cacheUserGroupRefItem.Subscribe((r) => UpdateUserGroupRefCache(r, false), CacheNotifyAction.InsertOrUpdate);
         }
-
         public void InvalidateCache()
         {
             InvalidateCache(null);
         }
-
-        private void InvalidateCache(UserInfoCacheItem userInfo)
+        private void InvalidateCache(UserInfo userInfo)
         {
             if (CoreBaseSettings.Personal && userInfo != null)
             {
-                var key = GetUserCacheKeyForPersonal(userInfo.Tenant, userInfo.ID.FromByteString());
+                var key = GetUserCacheKeyForPersonal(userInfo.Tenant, userInfo.ID);
                 Cache.Remove(key);
             }
 
@@ -171,10 +150,6 @@ namespace ASC.Core.Caching
             options.CoreBaseSettings = CoreBaseSettings;
             options.UserServiceCache = UserServiceCache;
             options.Cache = UserServiceCache.Cache;
-            options.CacheUserInfoItem = UserServiceCache.CacheUserInfoItem;
-            options.CacheUserPhotoItem = UserServiceCache.CacheUserPhotoItem;
-            options.CacheGroupCacheItem = UserServiceCache.CacheGroupCacheItem;
-            options.CacheUserGroupRefItem = UserServiceCache.CacheUserGroupRefItem;
             options.TrustInterval = UserServiceCache.TrustInterval;
         }
     }
@@ -193,10 +168,6 @@ namespace ASC.Core.Caching
         private TimeSpan PhotoExpiration { get; set; }
         internal CoreBaseSettings CoreBaseSettings { get; set; }
         internal UserServiceCache UserServiceCache { get; set; }
-        internal ICacheNotify<UserInfoCacheItem> CacheUserInfoItem { get; set; }
-        internal ICacheNotify<UserPhotoCacheItem> CacheUserPhotoItem { get; set; }
-        internal ICacheNotify<GroupCacheItem> CacheGroupCacheItem { get; set; }
-        internal ICacheNotify<UserGroupRefCacheItem> CacheUserGroupRefItem { get; set; }
 
         public CachedUserService()
         {
@@ -215,10 +186,6 @@ namespace ASC.Core.Caching
             CoreBaseSettings = coreBaseSettings;
             UserServiceCache = userServiceCache;
             Cache = userServiceCache.Cache;
-            CacheUserInfoItem = userServiceCache.CacheUserInfoItem;
-            CacheUserPhotoItem = userServiceCache.CacheUserPhotoItem;
-            CacheGroupCacheItem = userServiceCache.CacheGroupCacheItem;
-            CacheUserGroupRefItem = userServiceCache.CacheUserGroupRefItem;
             TrustInterval = userServiceCache.TrustInterval;
         }
 
@@ -298,14 +265,12 @@ namespace ASC.Core.Caching
         public UserInfo SaveUser(int tenant, UserInfo user)
         {
             user = Service.SaveUser(tenant, user);
-            CacheUserInfoItem.Publish(new UserInfoCacheItem { ID = user.ID.ToByteString(), Tenant = tenant }, CacheNotifyAction.Any);
             return user;
         }
 
         public void RemoveUser(int tenant, Guid id)
         {
             Service.RemoveUser(tenant, id);
-            CacheUserInfoItem.Publish(new UserInfoCacheItem { Tenant = tenant, ID = id.ToByteString() }, CacheNotifyAction.Any);
         }
 
         public byte[] GetUserPhoto(int tenant, Guid id)
@@ -322,7 +287,6 @@ namespace ASC.Core.Caching
         public void SetUserPhoto(int tenant, Guid id, byte[] photo)
         {
             Service.SetUserPhoto(tenant, id, photo);
-            CacheUserPhotoItem.Publish(new UserPhotoCacheItem { Key = UserServiceCache.GetUserPhotoCacheKey(tenant, id) }, CacheNotifyAction.Remove);
         }
 
         public DateTime GetUserPasswordStamp(int tenant, Guid id)
@@ -359,14 +323,12 @@ namespace ASC.Core.Caching
         public Group SaveGroup(int tenant, Group group)
         {
             group = Service.SaveGroup(tenant, group);
-            CacheGroupCacheItem.Publish(new GroupCacheItem { ID = group.Id.ToString() }, CacheNotifyAction.Any);
             return group;
         }
 
         public void RemoveGroup(int tenant, Guid id)
         {
             Service.RemoveGroup(tenant, id);
-            CacheGroupCacheItem.Publish(new GroupCacheItem { ID = id.ToString() }, CacheNotifyAction.Any);
         }
 
 
@@ -389,16 +351,12 @@ namespace ASC.Core.Caching
         public UserGroupRef SaveUserGroupRef(int tenant, UserGroupRef r)
         {
             r = Service.SaveUserGroupRef(tenant, r);
-            CacheUserGroupRefItem.Publish(r, CacheNotifyAction.InsertOrUpdate);
             return r;
         }
 
         public void RemoveUserGroupRef(int tenant, Guid userId, Guid groupId, UserGroupRefType refType)
         {
             Service.RemoveUserGroupRef(tenant, userId, groupId, refType);
-
-            var r = new UserGroupRef(userId, groupId, refType) { Tenant = tenant };
-            CacheUserGroupRefItem.Publish(r, CacheNotifyAction.Remove);
         }
 
 

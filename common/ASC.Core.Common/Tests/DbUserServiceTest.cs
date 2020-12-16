@@ -30,6 +30,7 @@ namespace ASC.Core.Common.Tests
     using System;
     using System.Linq;
 
+    using ASC.Core.Caching;
     using ASC.Core.Data;
     using ASC.Core.Users;
 
