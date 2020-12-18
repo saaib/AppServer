@@ -484,17 +484,16 @@ namespace ASC.Web.Files.Utils
             }
         }
 
-        public IEnumerable<File<T>> GetTemplates<T>(IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent)
+        public IEnumerable<FileEntry<T>> GetTemplates<T>(IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent)
         {
             var tagDao = DaoFactory.GetTagDao<T>();
             var tags = tagDao.GetTags(AuthContext.CurrentAccount.ID, TagType.Template);
 
             var fileIds = tags.Where(tag => tag.EntryType == FileEntryType.File).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToArray();
 
-            var files = fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
+            IEnumerable<FileEntry<T>> files = fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
             files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
-
-            files = FileSecurity.FilterRead(files).ToList();
+            files = FileSecurity.FilterRead(files);
 
             return files;
         }
@@ -534,16 +533,16 @@ namespace ASC.Web.Files.Utils
             return folderList;
         }
 
-        public IEnumerable<File<T>> GetRecent<T>(IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent)
+        public IEnumerable<FileEntry<T>> GetRecent<T>(IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent)
         {
             var tagDao = DaoFactory.GetTagDao<T>();
+
             var tags = tagDao.GetTags(AuthContext.CurrentAccount.ID, TagType.Recent).ToList();
-
             var fileIds = tags.Where(tag => tag.EntryType == FileEntryType.File).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToArray();
-            var files = fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
-            files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
 
-            files = FileSecurity.FilterRead(files).ToList();
+            IEnumerable<FileEntry<T>> files = fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
+            files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
+            files = FileSecurity.FilterRead(files);
 
             var listFileIds = fileIds.ToList();
             files = files.OrderBy(file => listFileIds.IndexOf(file.ID)).ToList();
@@ -551,7 +550,7 @@ namespace ASC.Web.Files.Utils
             return files;
         }
 
-        public void GetFavorites<T>(IFolderDao<T> folderDao, IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent, out IEnumerable<Folder<T>> folders, out IEnumerable<File<T>> files)
+        public void GetFavorites<T>(IFolderDao<T> folderDao, IFileDao<T> fileDao, FilterType filter, bool subjectGroup, Guid subjectId, string searchText, bool searchInContent, out IEnumerable<FileEntry<T>> folders, out IEnumerable<FileEntry<T>> files)
         {
             folders = new List<Folder<T>>();
             files = new List<File<T>>();
@@ -562,10 +561,10 @@ namespace ASC.Web.Files.Utils
             if (filter == FilterType.None || filter == FilterType.FoldersOnly)
             {
                 var folderIds = tags.Where(tag => tag.EntryType == FileEntryType.Folder).Select(tag => (T)Convert.ChangeType(tag.EntryId, typeof(T))).ToList();
+                
                 folders = folderDao.GetFolders(folderIds, filter, subjectGroup, subjectId, searchText, false, false);
                 folders = folders.Where(folder => folder.RootFolderType != FolderType.TRASH).ToList();
-
-                folders = fileSecurity.FilterRead(folders).ToList();
+                folders = fileSecurity.FilterRead(folders);
             }
 
             if (filter != FilterType.FoldersOnly)
@@ -574,7 +573,7 @@ namespace ASC.Web.Files.Utils
                 files = fileDao.GetFilesFiltered(fileIds, filter, subjectGroup, subjectId, searchText, searchInContent);
                 files = files.Where(file => file.RootFolderType != FolderType.TRASH).ToList();
 
-                files = fileSecurity.FilterRead(files).ToList();
+                files = fileSecurity.FilterRead(files);
             }
         }
 

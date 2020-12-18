@@ -347,13 +347,12 @@ namespace ASC.Web.Files.Services.WCFService
 
             var folderDao = DaoFactory.GetFolderDao<TId>();
             var fileDao = DaoFactory.GetFileDao<TId>();
+
             var folders = folderDao.GetFolders(foldersId);
-            folders = FileSecurity.FilterRead(folders).ToList();
-            entries = entries.Concat(folders);
+            entries = entries.Concat(FileSecurity.FilterRead(folders));
 
             var files = fileDao.GetFiles(filesId);
-            files = FileSecurity.FilterRead(files).ToList();
-            entries = entries.Concat(files);
+            entries = entries.Concat(FileSecurity.FilterRead(files));
 
             entries = EntryManager.FilterEntries(entries, filter, subjectGroup, subjectId, search, true);
 
@@ -1645,13 +1644,11 @@ namespace ASC.Web.Files.Services.WCFService
             var folderDao = GetFolderDao();
             var entries = Enumerable.Empty<FileEntry<T>>();
 
-            var files = fileDao.GetFiles(filesId);
-            files = FileSecurity.FilterRead(files).ToList();
-            entries = entries.Concat(files);
+            IEnumerable<FileEntry<T>> files = fileDao.GetFiles(filesId);
+            entries = entries.Concat(FileSecurity.FilterRead(files));
 
-            var folders = folderDao.GetFolders(foldersId);
-            folders = FileSecurity.FilterRead(folders).ToList();
-            entries = entries.Concat(folders);
+            IEnumerable<FileEntry<T>> folders = folderDao.GetFolders(foldersId);
+            entries = entries.Concat(FileSecurity.FilterRead(folders));
 
             var tags = entries.Select(entry => Tag.Favorite(AuthContext.CurrentAccount.ID, entry));
 
@@ -1667,12 +1664,11 @@ namespace ASC.Web.Files.Services.WCFService
             var folderDao = GetFolderDao();
             var entries = Enumerable.Empty<FileEntry<T>>();
 
-            var files = fileDao.GetFiles(filesId);
-            files = FileSecurity.FilterRead(files).ToList();
-            entries = entries.Concat(files);
+            IEnumerable<FileEntry<T>> files = fileDao.GetFiles(filesId);
+            entries = entries.Concat(FileSecurity.FilterRead(files));
 
-            var folders = folderDao.GetFolders(foldersId);
-            folders = FileSecurity.FilterRead(folders).ToList();
+            IEnumerable<FileEntry<T>> folders = folderDao.GetFolders(foldersId);
+            folders = FileSecurity.FilterRead(folders);
             entries = entries.Concat(folders);
 
             var tags = entries.Select(entry => Tag.Favorite(AuthContext.CurrentAccount.ID, entry));
@@ -1692,7 +1688,7 @@ namespace ASC.Web.Files.Services.WCFService
 
             var tagDao = GetTagDao();
             var fileDao = GetFileDao();
-            var files = fileDao.GetFiles(filesId);
+            IEnumerable<FileEntry<T>> files = fileDao.GetFiles(filesId);
 
             files = FileSecurity.FilterRead(files)
                 .Where(file => FileUtility.ExtsWebTemplate.Contains(FileUtility.GetFileExtension(file.Title), StringComparer.CurrentCultureIgnoreCase))
@@ -1709,9 +1705,9 @@ namespace ASC.Web.Files.Services.WCFService
         {
             var tagDao = GetTagDao();
             var fileDao = GetFileDao();
-            var files = fileDao.GetFiles(filesId);
+            IEnumerable<FileEntry<T>> files = fileDao.GetFiles(filesId);
 
-            files = FileSecurity.FilterRead(files).ToList();
+            files = FileSecurity.FilterRead(files);
 
             var tags = files.Select(file => Tag.Template(AuthContext.CurrentAccount.ID, file));
 
@@ -1724,7 +1720,7 @@ namespace ASC.Web.Files.Services.WCFService
         {
             try
             {
-                IEnumerable<File<T>> result;
+                IEnumerable<FileEntry<T>> result;
 
                 var subjectId = string.IsNullOrEmpty(subjectID) ? Guid.Empty : new Guid(subjectID);
                 var fileDao = GetFileDao();

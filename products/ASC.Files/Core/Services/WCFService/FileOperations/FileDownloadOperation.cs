@@ -152,7 +152,7 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             ReplaceLongPath(entriesPathId);
         }
 
-        private ItemNameValueCollection<T> ExecPathFromFile(IServiceScope scope, File<T> file, string path)
+        private ItemNameValueCollection<T> ExecPathFromFile(IServiceScope scope, FileEntry<T> file, string path)
         {
             var fileMarker = scope.ServiceProvider.GetService<FileMarker>();
             fileMarker.RemoveMarkAsNew(file);
@@ -181,9 +181,12 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
             var entriesPathId = new ItemNameValueCollection<T>();
             if (0 < Files.Count)
             {
-                var files = FileDao.GetFiles(Files);
-                files = FilesSecurity.FilterRead(files).ToList();
-                files.ForEach(file => entriesPathId.Add(ExecPathFromFile(scope, file, string.Empty)));
+                IEnumerable<FileEntry<T>> files = FileDao.GetFiles(Files);
+                files = FilesSecurity.FilterRead(files);
+                foreach(var file in files)
+                {
+                    entriesPathId.Add(ExecPathFromFile(scope, file, string.Empty));
+                }
             }
             if (0 < Folders.Count)
             {
@@ -211,20 +214,23 @@ namespace ASC.Web.Files.Services.WCFService.FileOperations
                 if (folder == null || !FilesSecurity.CanRead(folder)) continue;
                 var folderPath = path + folder.Title + "/";
 
-                var files = FileDao.GetFiles(folder.ID, null, FilterType.None, false, Guid.Empty, string.Empty, true);
-                files = FilesSecurity.FilterRead(files).ToList();
-                files.ForEach(file => entriesPathId.Add(ExecPathFromFile(scope, file, folderPath)));
+                IEnumerable<FileEntry<T>> files = FileDao.GetFiles(folder.ID, null, FilterType.None, false, Guid.Empty, string.Empty, true);
+                files = FilesSecurity.FilterRead(files);
+                foreach(var file in files)
+                {
+                    entriesPathId.Add(ExecPathFromFile(scope, file, folderPath));
+                }
 
                 fileMarker.RemoveMarkAsNew(folder);
 
-                var nestedFolders = FolderDao.GetFolders(folder.ID);
-                nestedFolders = FilesSecurity.FilterRead(nestedFolders).ToList();
-                if (files.Count == 0 && nestedFolders.Count == 0)
+                IEnumerable<FileEntry<T>> nestedFolders = FolderDao.GetFolders(folder.ID);
+                nestedFolders = FilesSecurity.FilterRead(nestedFolders);
+                if (!files.Any() && !nestedFolders.Any())
                 {
                     entriesPathId.Add(folderPath, default(T));
                 }
 
-                var filesInFolder = GetFilesInFolders(scope, nestedFolders.ConvertAll(f => f.ID), folderPath);
+                var filesInFolder = GetFilesInFolders(scope, nestedFolders.Select(f => f.ID), folderPath);
                 entriesPathId.Add(filesInFolder);
             }
             return entriesPathId;
