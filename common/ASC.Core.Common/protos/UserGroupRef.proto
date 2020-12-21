@@ -1,0 +1,15 @@
+﻿syntax = "proto3";
+
+package ASC.Core.Caching;
+
+message UserGroupRef {
+    bytes UserIdProto  = 1;
+    bytes GroupIdProto  = 2;
+    bool Removed  = 3;
+    int32 RefTypeProto  = 7;
+    int64 LastModifiedProto  = 5;
+    int32 Tenant  = 6;
+}
+message UserGroupRefStore {
+    map<string, UserGroupRef> Refs = 1;
+}
