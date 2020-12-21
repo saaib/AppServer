@@ -51,7 +51,8 @@ namespace ASC.Core.Users
         }
 
 
-        public Guid ID { get
+        public Guid ID { 
+            get
             {
                 return IDProto.FromByteString();
             }

@@ -50,18 +50,17 @@ namespace ASC.Core.Caching
         private const string GROUPS = "groups";
         public const string REFS = "refs";
 
+        public DistributedCache Cache;
         public TrustInterval TrustInterval { get; set; }
-        public ICache Cache { get; }
         internal CoreBaseSettings CoreBaseSettings { get; }
 
         public UserServiceCache(
             CoreBaseSettings coreBaseSettings,
-            IDistributedCache cache,
-            IOptionsMonitor<ILog> options)
+            IOptionsMonitor<ILog> options,
+            DistributedCache distributedCache)
         {
             TrustInterval = new TrustInterval();
-            Cache = AscCache.Memory;//  new DistributedCache(cache, options);//For memory based chache use AscCache.Memory;
-            options.CurrentValue.Error("DistributedCache Created");
+            Cache = distributedCache;
             CoreBaseSettings = coreBaseSettings;
         }
         public void InvalidateCache()
@@ -158,7 +157,6 @@ namespace ASC.Core.Caching
     public class CachedUserService : IUserService, ICachedService
     {
         internal IUserService Service { get; set; }
-        internal ICache Cache { get; set; }
 
         internal TrustInterval TrustInterval { get; set; }
         private int getchanges;
@@ -168,6 +166,7 @@ namespace ASC.Core.Caching
         private TimeSpan PhotoExpiration { get; set; }
         internal CoreBaseSettings CoreBaseSettings { get; set; }
         internal UserServiceCache UserServiceCache { get; set; }
+        public DistributedCache Cache { get; set; }
 
         public CachedUserService()
         {
@@ -275,7 +274,7 @@ namespace ASC.Core.Caching
 
         public byte[] GetUserPhoto(int tenant, Guid id)
         {
-            var photo = Cache.Get<byte[]>(UserServiceCache.GetUserPhotoCacheKey(tenant, id));
+            var photo = Cache.Get(UserServiceCache.GetUserPhotoCacheKey(tenant, id));
             if (photo == null)
             {
                 photo = Service.GetUserPhoto(tenant, id);
@@ -365,12 +364,13 @@ namespace ASC.Core.Caching
             GetChangesFromDb();
 
             var key = UserServiceCache.GetUserCacheKey(tenant);
-            var users = Cache.Get<IDictionary<Guid, UserInfo>>(key);
+            var users = Cache.Get<UserInfoList>(key).UserInfoListProto.ToDictionary(r => r.ID, r => r);
             if (users == null)
             {
-                users = Service.GetUsers(tenant, default);
-
-                Cache.Insert(key, users, CacheExpiration);
+                UserInfoList usersList = new UserInfoList();
+                usersList.UserInfoListProto.AddRange(Service.GetUsers(tenant, default).Values);
+                Cache.Insert(key, usersList, CacheExpiration);
+                users = usersList.UserInfoListProto.ToDictionary(r => r.ID, r => r);
             }
             return users;
         }
@@ -380,11 +380,13 @@ namespace ASC.Core.Caching
             GetChangesFromDb();
 
             var key = UserServiceCache.GetGroupCacheKey(tenant);
-            var groups = Cache.Get<IDictionary<Guid, Group>>(key);
+            var groups = Cache.Get<GroupList>(key).GroupListProto.ToDictionary(r => r.Id, r => r);
             if (groups == null)
             {
-                groups = Service.GetGroups(tenant, default);
-                Cache.Insert(key, groups, CacheExpiration);
+                GroupList groupList = new GroupList();
+                groupList.GroupListProto.AddRange(Service.GetGroups(tenant, default).Values);
+                Cache.Insert(key, groupList, CacheExpiration);
+                groups = groupList.GroupListProto.ToDictionary(r => r.Id, r => r);
             }
             return groups;
         }
@@ -415,35 +417,35 @@ namespace ASC.Core.Caching
                     TrustInterval.Start(DbExpiration);
 
                     //get and merge changes in cached tenants
-                    foreach (var tenantGroup in Service.GetUsers(Tenant.DEFAULT_TENANT, starttime).Values.GroupBy(u => u.Tenant))
-                    {
-                        var users = Cache.Get<IDictionary<Guid, UserInfo>>(UserServiceCache.GetUserCacheKey(tenantGroup.Key));
-                        if (users != null)
-                        {
-                            lock (users)
-                            {
-                                foreach (var u in tenantGroup)
-                                {
-                                    users[u.ID] = u;
-                                }
-                            }
-                        }
-                    }
+                    //foreach (var tenantGroup in Service.GetUsers(Tenant.DEFAULT_TENANT, starttime).Values.GroupBy(u => u.Tenant))
+                    //{
+                    //    var users = Cache.Get<IDictionary<Guid, UserInfo>>(UserServiceCache.GetUserCacheKey(tenantGroup.Key));
+                    //    if (users != null)
+                    //    {
+                    //        lock (users)
+                    //        {
+                    //            foreach (var u in tenantGroup)
+                    //            {
+                    //                users[u.ID] = u;
+                    //            }
+                    //        }
+                    //    }
+                    //}
 
-                    foreach (var tenantGroup in Service.GetGroups(Tenant.DEFAULT_TENANT, starttime).Values.GroupBy(g => g.Tenant))
-                    {
-                        var groups = Cache.Get<IDictionary<Guid, Group>>(UserServiceCache.GetGroupCacheKey(tenantGroup.Key));
-                        if (groups != null)
-                        {
-                            lock (groups)
-                            {
-                                foreach (var g in tenantGroup)
-                                {
-                                    groups[g.Id] = g;
-                                }
-                            }
-                        }
-                    }
+                    //foreach (var tenantGroup in Service.GetGroups(Tenant.DEFAULT_TENANT, starttime).Values.GroupBy(g => g.Tenant))
+                    //{
+                    //    var groups = Cache.Get<IDictionary<Guid, Group>>(UserServiceCache.GetGroupCacheKey(tenantGroup.Key));
+                    //    if (groups != null)
+                    //    {
+                    //        lock (groups)
+                    //        {
+                    //            foreach (var g in tenantGroup)
+                    //            {
+                    //                groups[g.Id] = g;
+                    //            }
+                    //        }
+                    //    }
+                    //}
 
                     foreach (var tenantGroup in Service.GetUserGroupRefs(Tenant.DEFAULT_TENANT, starttime).Values.GroupBy(r => r.Tenant))
                     {

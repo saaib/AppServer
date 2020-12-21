@@ -28,6 +28,8 @@ using System;
 using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
+using Google.Protobuf;
+
 namespace ASC.Common.Caching
 {
     public interface ICache

@@ -10,113 +10,121 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
+using System.Reflection;
 
 
 namespace ASC.Common.Caching
 {
-    public class DistributedCache : ICache 
+    public class DistributedCache
     {
         private ILog Log { get; set; }
-
-        private BinaryFormatter formatter = new BinaryFormatter();
-
         public readonly IDistributedCache cache;
 
         public DistributedCache(IDistributedCache cache, IOptionsMonitor<ILog> options)
         {
             this.cache = cache;
             Log = options.Get("ASC.Web.Api");
-            Console.WriteLine($"DistributedCache Create.  ");
+            Log.Info("DistributedCache loaded");
         }
-        public T Get<T>(string key)  where T : class 
-        {
 
+        public T Get<T>(string key) where T : IMessage<T>, new()
+        {
             var binatyData=cache.Get(key);
-            //if(key.Contains("user")) return UserInfo.GetUserInfoFromBytes
+
             if (binatyData == null)
             {
-                Console.WriteLine($"DistributedCache. Get ({key}) No data.");
-                return null;
+                Log.Error($"DistributedCache: No Data with key ->{key}");
+                return default;
             }
             else
             {
                 try
                 {
-                    var TData = formatter.Deserialize(new MemoryStream(binatyData)) as T;
-                    return TData;
+                    var parser = new MessageParser<T>(() => new T());
+                    return parser.ParseFrom(binatyData);
                 }
                 catch(Exception ex)
                 {
                     Log.Error(ex);
-                    return null;
+                    return default;
                 }
             }
         }
-
-        public T HashGet<T>(string key, string field)
+        public byte[] Get(string key)
         {
-            Console.WriteLine("DistributedCache NotImplementedException");
-            throw new NotImplementedException();
+            return cache.Get(key);
         }
 
-        public ConcurrentDictionary<string, T> HashGetAll<T>(string key)
+        public void Insert<T>(string key, T value, TimeSpan sligingExpiration) where T : IMessage<T>, new()
         {
-            Console.WriteLine("DistributedCache NotImplementedException");
-            throw new NotImplementedException();
-        }
-
-        public void HashSet<T>(string key, string field, T value)
-        {
-            Console.WriteLine("DistributedCache NotImplementedException");
-            throw new NotImplementedException();
-        }
-
-        public void Insert(string key, object value, TimeSpan sligingExpiration)
-        {
-
-            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions() 
-            { 
-                SlidingExpiration = sligingExpiration 
-            };
-            using (MemoryStream memoryStream = new MemoryStream())
+            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
             {
-                try
-                {
-                    formatter.Serialize(memoryStream, value);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex);
-                }
-                cache.Set(key, memoryStream.ToArray(), opt);
-            }   
+                SlidingExpiration = sligingExpiration
+            };
+
+            try
+            {
+                cache.Set(key, value.ToByteArray(), opt);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
         }
 
-        public void Insert(string key, object value, DateTime absolutExpiration)
+        public void Insert<T>(string key, T value, DateTime absolutExpiration) where T : IMessage<T>, new()
         {
-            Console.WriteLine($"DistributedCache Insert({key}):");
-            Console.WriteLine(value);
             DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
             {
                  AbsoluteExpiration= absolutExpiration
             };
+
             using (MemoryStream memoryStream = new MemoryStream())
             {
                 try
                 {
-                    formatter.Serialize(memoryStream, value);
+                    cache.Set(key, value.ToByteArray(), opt);
                 }
                 catch (Exception ex)
                 {
                     Log.Error(ex);
                 }
-                cache.Set(key, memoryStream.ToArray(), opt);
+            }
+        }
+        public void Insert(string key, byte[] value, TimeSpan sligingExpiration)
+        {
+            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
+            {
+                SlidingExpiration = sligingExpiration
+            };
+
+            try
+            {
+                cache.Set(key, value, opt);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
             }
         }
 
+        public void Insert(string key, byte[] value, DateTime absolutExpiration)
+        {
+            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
+            {
+                AbsoluteExpiration = absolutExpiration
+            };
+            try
+            {
+                cache.Set(key, value, opt);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
+        }        
         public void Remove(string key)
         {
-            Console.WriteLine($"DistributedCache Remove({key})");
             cache.Remove(key);
         }
 
