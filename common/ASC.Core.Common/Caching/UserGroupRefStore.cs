@@ -148,7 +148,7 @@ namespace ASC.Core.Caching
 
         public IEnumerable<UserGroupRef> GetRefsByUser(Guid userId)
         {
-            if (changed)
+            if (changed|| index==null)
             {
                 index = Refs.Values.ToLookup(r => r.UserId);
                 changed = false;

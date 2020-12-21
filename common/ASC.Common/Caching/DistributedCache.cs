@@ -15,6 +15,7 @@ using System.Reflection;
 
 namespace ASC.Common.Caching
 {
+    [Singletone]
     public class DistributedCache
     {
         private ILog Log { get; set; }

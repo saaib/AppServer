@@ -364,15 +364,14 @@ namespace ASC.Core.Caching
             GetChangesFromDb();
 
             var key = UserServiceCache.GetUserCacheKey(tenant);
-            var users = Cache.Get<UserInfoList>(key).UserInfoListProto.ToDictionary(r => r.ID, r => r);
+            var users = Cache.Get<UserInfoList>(key);
             if (users == null)
             {
-                UserInfoList usersList = new UserInfoList();
-                usersList.UserInfoListProto.AddRange(Service.GetUsers(tenant, default).Values);
-                Cache.Insert(key, usersList, CacheExpiration);
-                users = usersList.UserInfoListProto.ToDictionary(r => r.ID, r => r);
+                users = new UserInfoList();
+                users.UserInfoListProto.AddRange(Service.GetUsers(tenant, default).Values);
+                Cache.Insert(key, users, CacheExpiration);
             }
-            return users;
+            return users.UserInfoListProto.ToDictionary(r => r.ID, r => r);
         }
 
         private IDictionary<Guid, Group> GetGroups(int tenant)
@@ -380,15 +379,14 @@ namespace ASC.Core.Caching
             GetChangesFromDb();
 
             var key = UserServiceCache.GetGroupCacheKey(tenant);
-            var groups = Cache.Get<GroupList>(key).GroupListProto.ToDictionary(r => r.Id, r => r);
+            var groups = Cache.Get<GroupList>(key);
             if (groups == null)
             {
-                GroupList groupList = new GroupList();
-                groupList.GroupListProto.AddRange(Service.GetGroups(tenant, default).Values);
-                Cache.Insert(key, groupList, CacheExpiration);
-                groups = groupList.GroupListProto.ToDictionary(r => r.Id, r => r);
+                groups = new GroupList();
+                groups.GroupListProto.AddRange(Service.GetGroups(tenant, default).Values);
+                Cache.Insert(key, groups, CacheExpiration);
             }
-            return groups;
+            return groups.GroupListProto.ToDictionary(r => r.Id, r => r);
         }
 
         private void GetChangesFromDb()

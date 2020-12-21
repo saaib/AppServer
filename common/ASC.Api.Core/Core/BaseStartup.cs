@@ -73,7 +73,7 @@ namespace ASC.Api.Core
             DIHelper.TryAdd<TenantStatusFilter>();
             DIHelper.TryAdd<ConfirmAuthHandler>();
             DIHelper.TryAdd(typeof(ICacheNotify<>), typeof(KafkaCache<>));
-            DIHelper.TryAdd(typeof(ICache), typeof(DistributedCache));
+            DIHelper.TryAdd<DistributedCache>();
 
             var builder = services.AddMvcCore(config =>
             {

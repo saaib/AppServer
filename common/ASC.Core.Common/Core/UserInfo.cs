@@ -72,11 +72,12 @@ namespace ASC.Core.Users
         {
             get
             {
-                return BirthDateProto.ToDateTime();
+                var result = BirthDateProto.ToDateTime();
+                if (result == DateTime.MinValue) return null; else return result;
             }
             set
             {
-                BirthDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value ?? default);
+                BirthDateProto = (value==null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()):Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value);
             }
         }
 
@@ -120,11 +121,12 @@ namespace ASC.Core.Users
         {
             get
             {
-                return TerminatedDateProto.ToDateTime();
+                var result = TerminatedDateProto.ToDateTime();
+                if (result == DateTime.MinValue) return null; else return result;
             }
             set
             {
-                TerminatedDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value??default);
+                TerminatedDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value.ToUniversalTime());
             }
         }
 
@@ -134,11 +136,12 @@ namespace ASC.Core.Users
         {
             get
             {
-                return WorkFromDateProto.ToDateTime();
+                var result = WorkFromDateProto.ToDateTime();
+                if (result == DateTime.MinValue) return null; else return result;
             }
             set
             {
-                WorkFromDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value ?? default);
+                WorkFromDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value.ToUniversalTime());
             }
         }
 
@@ -171,7 +174,7 @@ namespace ASC.Core.Users
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value); 
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime()); 
             }
         }
 
@@ -212,7 +215,7 @@ namespace ASC.Core.Users
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value);
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
             }
         }
 
