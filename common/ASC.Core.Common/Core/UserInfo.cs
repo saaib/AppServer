@@ -72,6 +72,7 @@ namespace ASC.Core.Users
         {
             get
             {
+                if (BirthDateProto == null) return null;
                 var result = BirthDateProto.ToDateTime();
                 if (result == DateTime.MinValue) return null; else return result;
             }
@@ -121,6 +122,7 @@ namespace ASC.Core.Users
         {
             get
             {
+                if (TerminatedDateProto == null) return null;
                 var result = TerminatedDateProto.ToDateTime();
                 if (result == DateTime.MinValue) return null; else return result;
             }
@@ -136,6 +138,7 @@ namespace ASC.Core.Users
         {
             get
             {
+                if (WorkFromDateProto == null) return null;
                 var result = WorkFromDateProto.ToDateTime();
                 if (result == DateTime.MinValue) return null; else return result;
             }
