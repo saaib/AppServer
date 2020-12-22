@@ -82,7 +82,9 @@ namespace ASC.Files.Core
         /// <param name="searchText"></param>
         /// <param name="withSubfolders"></param>
         /// <returns></returns>
-        List<Folder<T>> GetFolders(T parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false);
+        List<Folder<T>> GetFolders(T parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false, int from = 0, int count = 0);
+
+        int GetFoldersTotalCount(T parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false);
 
         /// <summary>
         /// Gets the folder (s) by ID (s)

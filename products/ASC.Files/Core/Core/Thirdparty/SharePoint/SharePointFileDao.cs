@@ -163,7 +163,7 @@ namespace ASC.Files.Thirdparty.SharePoint
             return ProviderInfo.GetFolderFiles(parentId).Select(r => ProviderInfo.ToFile(r).ID).ToList();
         }
 
-        public List<File<string>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        public List<File<string>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false, int from = 0, int count = 0)
         {
             if (filterType == FilterType.FoldersOnly) return new List<File<string>>();
 
@@ -224,6 +224,11 @@ namespace ASC.Files.Thirdparty.SharePoint
                 _ => orderBy.IsAsc ? files.OrderBy(x => x.Title) : files.OrderByDescending(x => x.Title),
             };
             return files.ToList();
+        }
+
+        public int GetFilesTotalCount(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        {
+            return GetFiles(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, searchInContent, withSubfolders).Count;
         }
 
         public Stream GetFileStream(File<string> file)

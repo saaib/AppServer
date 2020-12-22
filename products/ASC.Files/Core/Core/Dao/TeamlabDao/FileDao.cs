@@ -244,10 +244,38 @@ namespace ASC.Files.Core.Data
                 .ToList();
         }
 
-        public List<File<int>> GetFiles(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        public List<File<int>> GetFiles(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false, int from = 0, int count = 0)
         {
             if (filterType == FilterType.FoldersOnly) return new List<File<int>>();
 
+            var q = GetFilesQuery(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, searchInContent, withSubfolders);
+
+            var query = FromQueryWithShared(q);
+
+            if (from > 0)
+            {
+                query = query.Skip(from);
+            }
+
+            if (count > 0)
+            {
+                query = query.Take(count);
+            }
+
+            return query.Select(ToFile).ToList();
+        }
+
+        public int GetFilesTotalCount(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        {
+            if (filterType == FilterType.FoldersOnly) return 0;
+
+            var q = GetFilesQuery(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, searchInContent, withSubfolders);
+
+            return q.Count();
+        }
+
+        private IQueryable<DbFile> GetFilesQuery(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        {
             if (orderBy == null) orderBy = new OrderBy(SortedByType.DateAndTime, false);
 
             var q = GetFileQuery(r => r.FolderId == parentId && r.CurrentVersion).AsNoTracking();
@@ -279,7 +307,7 @@ namespace ASC.Files.Core.Data
             }
 
             q = orderBy.SortedBy switch
-            {
+            {//SortedByType.Type => orderBy.IsAsc ? q.OrderBy(r => r.CreateBy) : q.OrderByDescending(r => r.CreateBy),
                 SortedByType.Author => orderBy.IsAsc ? q.OrderBy(r => r.CreateBy) : q.OrderByDescending(r => r.CreateBy),
                 SortedByType.Size => orderBy.IsAsc ? q.OrderBy(r => r.ContentLength) : q.OrderByDescending(r => r.ContentLength),
                 SortedByType.AZ => orderBy.IsAsc ? q.OrderBy(r => r.Title) : q.OrderByDescending(r => r.Title),
@@ -318,7 +346,7 @@ namespace ASC.Files.Core.Data
                     break;
             }
 
-            return FromQueryWithShared(q).Select(ToFile).ToList();
+            return q;
         }
 
         public Stream GetFileStream(File<int> file, long offset)

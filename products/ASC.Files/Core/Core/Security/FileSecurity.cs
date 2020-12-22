@@ -322,6 +322,19 @@ namespace ASC.Files.Core.Security
                          .ToList();
         }
 
+        public bool NeedFilterReadEntries<T>(Folder<T> parent)
+        {
+            var userId = AuthContext.CurrentAccount.ID;
+            var user = UserManager.GetUsers(userId);
+            var isVisitor = user.IsVisitor(UserManager);
+            if (parent.RootFolderType == FolderType.USER && parent.RootFolderCreator == userId && !isVisitor)
+            {
+                return false;
+            }
+
+            return true;
+        }
+
         public IEnumerable<FileEntry<T>> FilterRead<T>(IEnumerable<FileEntry<T>> entries)
         {
             return Filter(entries, FilesSecurityActions.Read, AuthContext.CurrentAccount.ID);

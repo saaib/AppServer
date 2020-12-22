@@ -179,7 +179,7 @@ namespace ASC.Files.Thirdparty.ProviderDao
             return fileDao.GetFiles(selector.ConvertId(parentId)).Where(r => r != null).ToList();
         }
 
-        public List<File<string>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        public List<File<string>> GetFiles(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false, int from = 0, int count = 0)
         {
             var selector = GetSelector(parentId);
 
@@ -193,6 +193,11 @@ namespace ASC.Files.Thirdparty.ProviderDao
             SetSharedProperty(result);
 
             return result;
+        }
+
+        public int GetFilesTotalCount(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool searchInContent, bool withSubfolders = false)
+        {
+            return GetFiles(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, searchInContent, withSubfolders).Count;
         }
 
         public Stream GetFileStream(File<string> file)

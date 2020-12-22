@@ -163,7 +163,7 @@ namespace ASC.Files.Core.Data
             return GetFolders(parentId, default, default, false, default, string.Empty);
         }
 
-        public List<Folder<int>> GetFolders(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        public List<Folder<int>> GetFolders(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false, int from = 0, int count = 0)
         {
             if (filterType == FilterType.FilesOnly || filterType == FilterType.ByExtension
                 || filterType == FilterType.DocumentsOnly || filterType == FilterType.ImagesOnly
@@ -171,6 +171,45 @@ namespace ASC.Files.Core.Data
                 || filterType == FilterType.ArchiveOnly || filterType == FilterType.MediaOnly)
                 return new List<Folder<int>>();
 
+            var q = GetFoldersQuery(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, withSubfolders);
+
+            var query = FromQueryWithShared(q);
+
+            query = orderBy.SortedBy switch
+            {
+                SortedByType.Author => orderBy.IsAsc ? query.OrderBy(r => r.Folder.CreateBy) : query.OrderByDescending(r => r.Folder.CreateBy),
+                SortedByType.AZ => orderBy.IsAsc ? query.OrderBy(r => r.Folder.Title) : query.OrderByDescending(r => r.Folder.Title),
+                SortedByType.DateAndTime => orderBy.IsAsc ? query.OrderBy(r => r.Folder.ModifiedOn) : query.OrderByDescending(r => r.Folder.ModifiedOn),
+                SortedByType.DateAndTimeCreation => orderBy.IsAsc ? query.OrderBy(r => r.Folder.CreateOn) : query.OrderByDescending(r => r.Folder.CreateOn),
+                _ => query.OrderBy(r => r.Folder.Title),
+            };
+
+            if (from > 0)
+            {
+                query = query.Skip(from);
+            }
+
+            if(count > 0)
+            {
+                query = query.Take(count);
+            }
+
+            return query.Select(ToFolder).ToList();
+        }
+
+        public int GetFoldersTotalCount(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        {
+            if (filterType == FilterType.FilesOnly || filterType == FilterType.ByExtension
+                || filterType == FilterType.DocumentsOnly || filterType == FilterType.ImagesOnly
+                || filterType == FilterType.PresentationsOnly || filterType == FilterType.SpreadsheetsOnly
+                || filterType == FilterType.ArchiveOnly || filterType == FilterType.MediaOnly)
+                return 0;
+
+            return GetFoldersQuery(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, withSubfolders).Count();
+        }
+
+        private IQueryable<DbFolder> GetFoldersQuery(int parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        {
             if (orderBy == null) orderBy = new OrderBy(SortedByType.DateAndTime, false);
 
             var q = GetFolderQuery(r => r.ParentId == parentId).AsNoTracking();
@@ -195,14 +234,6 @@ namespace ASC.Files.Core.Data
                 }
             }
 
-            q = orderBy.SortedBy switch
-            {
-                SortedByType.Author => orderBy.IsAsc ? q.OrderBy(r => r.CreateBy) : q.OrderByDescending(r => r.CreateBy),
-                SortedByType.AZ => orderBy.IsAsc ? q.OrderBy(r => r.Title) : q.OrderByDescending(r => r.Title),
-                SortedByType.DateAndTime => orderBy.IsAsc ? q.OrderBy(r => r.ModifiedOn) : q.OrderByDescending(r => r.ModifiedOn),
-                SortedByType.DateAndTimeCreation => orderBy.IsAsc ? q.OrderBy(r => r.CreateOn) : q.OrderByDescending(r => r.CreateOn),
-                _ => q.OrderBy(r => r.Title),
-            };
             if (subjectID != Guid.Empty)
             {
                 if (subjectGroup)
@@ -216,7 +247,7 @@ namespace ASC.Files.Core.Data
                 }
             }
 
-            return FromQueryWithShared(q).Select(ToFolder).ToList();
+            return q;
         }
 
         public List<Folder<int>> GetFolders(IEnumerable<int> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)

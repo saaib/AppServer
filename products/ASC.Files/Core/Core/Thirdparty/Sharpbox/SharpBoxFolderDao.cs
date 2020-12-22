@@ -104,7 +104,7 @@ namespace ASC.Files.Thirdparty.Sharpbox
             return parentFolder.OfType<ICloudDirectoryEntry>().Select(ToFolder).ToList();
         }
 
-        public List<Folder<string>> GetFolders(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        public List<Folder<string>> GetFolders(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false, int from = 0, int count = 0)
         {
             if (filterType == FilterType.FilesOnly || filterType == FilterType.ByExtension
                 || filterType == FilterType.DocumentsOnly || filterType == FilterType.ImagesOnly
@@ -136,6 +136,11 @@ namespace ASC.Files.Thirdparty.Sharpbox
                 _ => orderBy.IsAsc ? folders.OrderBy(x => x.Title) : folders.OrderByDescending(x => x.Title),
             };
             return folders.ToList();
+        }
+
+        public int GetFoldersTotalCount(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        {
+            return GetFolders(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, withSubfolders).Count;
         }
 
         public List<Folder<string>> GetFolders(IEnumerable<string> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)

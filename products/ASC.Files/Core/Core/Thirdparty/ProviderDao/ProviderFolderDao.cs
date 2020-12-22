@@ -96,7 +96,7 @@ namespace ASC.Files.Thirdparty.ProviderDao
                 .ToList();
         }
 
-        public List<Folder<string>> GetFolders(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        public List<Folder<string>> GetFolders(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false, int from = 0, int count = 0)
         {
             var selector = GetSelector(parentId);
             var folderDao = selector.GetFolderDao(parentId);
@@ -108,6 +108,11 @@ namespace ASC.Files.Thirdparty.ProviderDao
             SetSharedProperty(result);
 
             return result;
+        }
+
+        public int GetFoldersTotalCount(string parentId, OrderBy orderBy, FilterType filterType, bool subjectGroup, Guid subjectID, string searchText, bool withSubfolders = false)
+        {
+            return GetFolders(parentId, orderBy, filterType, subjectGroup, subjectID, searchText, withSubfolders).Count;
         }
 
         public List<Folder<string>> GetFolders(IEnumerable<string> folderIds, FilterType filterType = FilterType.None, bool subjectGroup = false, Guid? subjectID = null, string searchText = "", bool searchSubfolders = false, bool checkShare = true)

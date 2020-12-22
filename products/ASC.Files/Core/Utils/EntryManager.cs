@@ -428,24 +428,80 @@ namespace ASC.Web.Files.Utils
                 if (parent.FolderType == FolderType.TRASH)
                     withSubfolders = false;
 
-                var folders = DaoFactory.GetFolderDao<T>().GetFolders(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders);
-                entries = entries.Concat(fileSecurity.FilterRead(folders));
+                List<Folder<T>> folders;
+                List<File<T>> files;
 
-                var files = DaoFactory.GetFileDao<T>().GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders);
-                entries = entries.Concat(fileSecurity.FilterRead(files));
-
-                if (filter == FilterType.None || filter == FilterType.FoldersOnly)
+                if (fileSecurity.NeedFilterReadEntries(parent))
                 {
-                    var folderList = GetThirpartyFolders(parent, searchText);
+                    folders = DaoFactory.GetFolderDao<T>().GetFolders(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders);
+                    entries = entries.Concat(fileSecurity.FilterRead(folders));
 
-                    var thirdPartyFolder = FilterEntries(folderList, filter, subjectGroup, subjectId, searchText, searchInContent);
-                    entries = entries.Concat(thirdPartyFolder);
+                    files = DaoFactory.GetFileDao<T>().GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders);
+                    entries = entries.Concat(fileSecurity.FilterRead(files));
+
+                    if (filter == FilterType.None || filter == FilterType.FoldersOnly)
+                    {
+                        var folderList = GetThirpartyFolders(parent, searchText);
+
+                        var thirdPartyFolder = FilterEntries(folderList, filter, subjectGroup, subjectId, searchText, searchInContent);
+                        entries = entries.Concat(thirdPartyFolder);
+                    }
                 }
+                else
+                {
+                    var folderDao = DaoFactory.GetFolderDao<T>();
+                    int foldersCount = 0;
+
+                    total += folderDao.GetFoldersTotalCount(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders);
+
+                    if (IsThirpartyFoldersEnabled(parent))
+                    {
+                        folders = folderDao.GetFolders(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders);
+
+                        if (filter == FilterType.None || filter == FilterType.FoldersOnly)
+                        {
+                            var folderList = GetThirpartyFolders(parent, searchText);
+                            total += folderList.Count();
+                            entries = entries.Concat(folderList);
+                        }
+
+                        if (parent.FolderType != FolderType.Recent)
+                        {
+                            entries = SortEntries<T>(entries, orderBy);
+                        }
+
+                        if (from > 0) entries = entries.Skip(from);
+                        if (count > 0) entries = entries.Take(count);
+
+                        foldersCount = entries.Count();
+                    }
+                    else
+                    {
+                        folders = folderDao.GetFolders(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders, from, count);
+                        foldersCount = folders.Count;
+                        entries = entries.Concat(folders);
+                    }
+
+                    var filesCount = count - foldersCount;
+
+                    var fileDao = DaoFactory.GetFileDao<T>();
+                    total += fileDao.GetFilesTotalCount(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, withSubfolders);
+
+                    if (filesCount > 0)
+                    {
+                        files = fileDao.GetFiles(parent.ID, orderBy, filter, subjectGroup, subjectId, searchText, searchInContent, withSubfolders, from, filesCount);
+                        entries = entries.Concat(files);
+                    }
+                }
+
             }
 
-            if (orderBy.SortedBy != SortedByType.New && parent.FolderType != FolderType.Recent)
+            if (orderBy.SortedBy != SortedByType.New && fileSecurity.NeedFilterReadEntries(parent))
             {
-                entries = SortEntries<T>(entries, orderBy);
+                if (parent.FolderType != FolderType.Recent)
+                {
+                    entries = SortEntries<T>(entries, orderBy);
+                }
 
                 total = entries.Count();
                 if (0 < from) entries = entries.Skip(from);
@@ -498,24 +554,28 @@ namespace ASC.Web.Files.Utils
             return files;
         }
 
+        private bool IsThirpartyFoldersEnabled<T>(Folder<T> parent)
+        {
+            return (parent.ID.Equals(GlobalFolderHelper.FolderMy) || parent.ID.Equals(GlobalFolderHelper.FolderCommon))
+                && ThirdpartyConfiguration.SupportInclusion(DaoFactory)
+                && (FilesSettingsHelper.EnableThirdParty
+                    || CoreBaseSettings.Personal);
+        }
+
         public IEnumerable<Folder<string>> GetThirpartyFolders<T>(Folder<T> parent, string searchText = null)
         {
             var folderList = new List<Folder<string>>();
 
-            if ((parent.ID.Equals(GlobalFolderHelper.FolderMy) || parent.ID.Equals(GlobalFolderHelper.FolderCommon))
-                && ThirdpartyConfiguration.SupportInclusion(DaoFactory)
-                && (FilesSettingsHelper.EnableThirdParty
-                    || CoreBaseSettings.Personal))
+            if (IsThirpartyFoldersEnabled(parent))
             {
                 var providerDao = DaoFactory.ProviderDao;
                 if (providerDao == null) return folderList;
 
-                var fileSecurity = FileSecurity;
-
                 var providers = providerDao.GetProvidersInfo(parent.RootFolderType, searchText);
                 folderList = providers
                     .Select(providerInfo => GetFakeThirdpartyFolder<T>(providerInfo, parent.ID.ToString()))
-                    .Where(r => fileSecurity.CanRead(r)).ToList();
+                    .Where(r => FileSecurity.CanRead(r))
+                    .ToList();
 
                 if (folderList.Any())
                 {
