@@ -196,7 +196,7 @@ namespace ASC.Employee.Core.Controllers
             if (CoreBaseSettings.Personal && !UserManager.GetUsers(SecurityContext.CurrentAccount.ID).IsOwner(Tenant))
                 throw new MethodAccessException("Method not available");
             var user = UserManager.GetUserByEmail(email);
-            if (user.ID == Constants.LostUser.ID)
+            if (user.ID == Constants.LostUser.ID) 
             {
                 throw new ItemNotFoundException("User not found");
             }

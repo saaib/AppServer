@@ -263,28 +263,45 @@ namespace ASC.Core.Caching
 
         public UserInfo SaveUser(int tenant, UserInfo user)
         {
+            var key = UserServiceCache.GetUserCacheKey(tenant);
+            Cache.Remove(key);
+
+            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
+            Cache.Remove(key);
+
             user = Service.SaveUser(tenant, user);
             return user;
         }
 
         public void RemoveUser(int tenant, Guid id)
         {
+            var key = UserServiceCache.GetUserCacheKey(tenant);
+            Cache.Remove(key);
+
+            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, id);
+            Cache.Remove(key);
+
             Service.RemoveUser(tenant, id);
         }
 
         public byte[] GetUserPhoto(int tenant, Guid id)
         {
             var photo = Cache.Get(UserServiceCache.GetUserPhotoCacheKey(tenant, id));
+
             if (photo == null)
             {
                 photo = Service.GetUserPhoto(tenant, id);
                 Cache.Insert(UserServiceCache.GetUserPhotoCacheKey(tenant, id), photo, PhotoExpiration);
             }
+
             return photo;
         }
 
         public void SetUserPhoto(int tenant, Guid id, byte[] photo)
         {
+            var key = UserServiceCache.GetUserPhotoCacheKey(tenant, id);
+            Cache.Remove(key);
+
             Service.SetUserPhoto(tenant, id, photo);
         }
 
@@ -295,6 +312,12 @@ namespace ASC.Core.Caching
 
         public void SetUserPasswordHash(int tenant, Guid id, string passwordHash)
         {
+            var key = UserServiceCache.GetUserCacheKey(tenant);
+            Cache.Remove(key);
+
+            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, id);
+            Cache.Remove(key);
+
             Service.SetUserPasswordHash(tenant, id, passwordHash);
         }
 
@@ -303,6 +326,7 @@ namespace ASC.Core.Caching
         public IDictionary<Guid, Group> GetGroups(int tenant, DateTime from)
         {
             var groups = GetGroups(tenant);
+
             lock (groups)
             {
                 return (from == default ? groups.Values : groups.Values.Where(g => g.LastModified >= from)).ToDictionary(g => g.Id);
@@ -312,6 +336,7 @@ namespace ASC.Core.Caching
         public Group GetGroup(int tenant, Guid id)
         {
             var groups = GetGroups(tenant);
+
             lock (groups)
             {
                 groups.TryGetValue(id, out var g);
@@ -321,12 +346,18 @@ namespace ASC.Core.Caching
 
         public Group SaveGroup(int tenant, Group group)
         {
+            var key = UserServiceCache.GetGroupCacheKey(tenant);
+            Cache.Remove(key);
+
             group = Service.SaveGroup(tenant, group);
             return group;
         }
 
         public void RemoveGroup(int tenant, Guid id)
         {
+            var key = UserServiceCache.GetGroupCacheKey(tenant);
+            Cache.Remove(key);
+
             Service.RemoveGroup(tenant, id);
         }
 
@@ -349,12 +380,18 @@ namespace ASC.Core.Caching
 
         public UserGroupRef SaveUserGroupRef(int tenant, UserGroupRef r)
         {
+            var key = UserServiceCache.GetRefCacheKey(tenant);
+            Cache.Remove(key);
+
             r = Service.SaveUserGroupRef(tenant, r);
             return r;
         }
 
         public void RemoveUserGroupRef(int tenant, Guid userId, Guid groupId, UserGroupRefType refType)
         {
+            var key = UserServiceCache.GetRefCacheKey(tenant);
+            Cache.Remove(key);
+
             Service.RemoveUserGroupRef(tenant, userId, groupId, refType);
         }
 
