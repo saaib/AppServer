@@ -11,7 +11,7 @@ using Microsoft.Extensions.Options;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.IO;
 using System.Reflection;
-
+using System.Diagnostics;
 
 namespace ASC.Common.Caching
 {
@@ -25,31 +25,48 @@ namespace ASC.Common.Caching
         {
             this.cache = cache;
             Log = options.Get("ASC.Web.Api");
-            Log.Info("DistributedCache loaded");
+            Log.Info("DistributedCache loaded.");
         }
 
         public T Get<T>(string key) where T : IMessage<T>, new()
         {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
+
             var binatyData=cache.Get(key);
 
-            if (binatyData == null)
-            {
-                Log.Error($"DistributedCache: No Data with key ->{key}");
-                return default;
-            }
-            else
+            if (binatyData != null)
             {
                 try
                 {
+                    Stopwatch sw1 = new Stopwatch();
+                    sw1.Start();
+
                     var parser = new MessageParser<T>(() => new T());
-                    return parser.ParseFrom(binatyData);
+                    var result=parser.ParseFrom(binatyData);
+
+                    sw1.Stop();
+                    Log.Info($"DistributedCache: Key {key} parsed in {sw1.Elapsed.TotalMilliseconds} ms.");
+
+                    sw.Stop();
+                    Log.Info($"DistributedCache: Key {key} found in {sw.Elapsed.TotalMilliseconds} ms.");
+
+                    return result;
                 }
                 catch(Exception ex)
                 {
                     Log.Error(ex);
+
+                    sw.Stop();
+                    Log.Info($"DistributedCache: Key {key} rised Exception in {sw.Elapsed.TotalMilliseconds} ms.");
+
                     return default;
                 }
             }
+
+            sw.Stop();
+            Log.Info($"DistributedCache: Key {key} not found in {sw.Elapsed.TotalMilliseconds} ms.");
+            return default;
         }
         public byte[] Get(string key)
         {
@@ -58,6 +75,8 @@ namespace ASC.Common.Caching
 
         public void Insert<T>(string key, T value, TimeSpan sligingExpiration) where T : IMessage<T>, new()
         {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
             {
                 SlidingExpiration = sligingExpiration
@@ -71,26 +90,30 @@ namespace ASC.Common.Caching
             {
                 Log.Error(ex);
             }
+            sw.Stop();
+            Log.Info($"DistributedCache: Key {key} Insert in {sw.Elapsed.TotalMilliseconds} ms.");
         }
 
         public void Insert<T>(string key, T value, DateTime absolutExpiration) where T : IMessage<T>, new()
         {
+            Stopwatch sw = new Stopwatch();
+            sw.Start();
             DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
             {
-                 AbsoluteExpiration= absolutExpiration
+                AbsoluteExpiration = absolutExpiration
             };
 
-            using (MemoryStream memoryStream = new MemoryStream())
+            try
             {
-                try
-                {
-                    cache.Set(key, value.ToByteArray(), opt);
-                }
-                catch (Exception ex)
-                {
-                    Log.Error(ex);
-                }
+                cache.Set(key, value.ToByteArray(), opt);
             }
+            catch (Exception ex)
+            {
+                Log.Error(ex);
+            }
+
+            sw.Stop();
+            Log.Info($"DistributedCache: Key {key} Insert in {sw.Elapsed.TotalMilliseconds} ms.");
         }
         public void Insert(string key, byte[] value, TimeSpan sligingExpiration)
         {

@@ -26,6 +26,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
@@ -158,6 +159,8 @@ namespace ASC.Core.Caching
     {
         internal IUserService Service { get; set; }
 
+        protected UserInfoList LocalUserInfoList;
+
         internal TrustInterval TrustInterval { get; set; }
         private int getchanges;
 
@@ -281,7 +284,16 @@ namespace ASC.Core.Caching
             users.UserInfoListProto.Remove(user);
             users.UserInfoListProto.Add(user);
 
+            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
+            {
+                SlidingExpiration = CacheExpiration
+            };
+
+            Cache.cache.SetString(keyForUsers + "hash", users.UserInfoListProto.GetHashCode().ToString(), opt);
+
             Cache.Insert(keyForUsers, users, CacheExpiration);
+
+            LocalUserInfoList = users;
 
             var keyForUser = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
 
@@ -301,9 +313,17 @@ namespace ASC.Core.Caching
             if (user == null) return;
 
             Cache.Remove(key);
+            DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
+            {
+                SlidingExpiration = CacheExpiration
+            };
+
+            Cache.cache.SetString(key + "hash", users.UserInfoListProto.GetHashCode().ToString(), opt);
 
             users.UserInfoListProto.Remove(user);
             Cache.Insert(key, users, CacheExpiration);
+
+            LocalUserInfoList = users;
 
             key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
             Cache.Remove(key);
@@ -347,8 +367,6 @@ namespace ASC.Core.Caching
 
             Service.SetUserPasswordHash(tenant, id, passwordHash);
         }
-
-
 
         public IDictionary<Guid, Group> GetGroups(int tenant, DateTime from)
         {
@@ -431,13 +449,29 @@ namespace ASC.Core.Caching
         private UserInfoList GetUsersProto(int tenant)
         {
             var key = UserServiceCache.GetUserCacheKey(tenant);
+            var hashString=Cache.cache.GetString(key + "hash");
+
+            if(int.TryParse(hashString, out int result)&& LocalUserInfoList!=null&&result == LocalUserInfoList.UserInfoListProto.GetHashCode())
+            {
+                return LocalUserInfoList;
+            }
+
             var users = Cache.Get<UserInfoList>(key);
+
             if (users == null)
             {
                 users = new UserInfoList();
                 users.UserInfoListProto.AddRange(Service.GetUsers(tenant, default).Values);
+
+                DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()
+                {
+                    SlidingExpiration = CacheExpiration
+                };
+
+                Cache.cache.SetString(key + "hash", users.UserInfoListProto.GetHashCode().ToString(), opt);
                 Cache.Insert(key, users, CacheExpiration);
             }
+            LocalUserInfoList = users;
             return users;
         }
 
