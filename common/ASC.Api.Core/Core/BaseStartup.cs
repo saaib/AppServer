@@ -19,6 +19,8 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+
 
 namespace ASC.Api.Core
 {
@@ -42,7 +44,15 @@ namespace ASC.Api.Core
         public virtual void ConfigureServices(IServiceCollection services)
         {
             services.AddHttpContextAccessor();
+
+            //services.AddStackExchangeRedisCache(options =>
+            //{
+            //    options.Configuration = "localhost";
+            //    options.InstanceName = "SampleInstance";
+            //});
+
             services.AddDistributedMemoryCache();
+
             DIHelper.Configure(services);
 
             if (AddControllers)

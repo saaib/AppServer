@@ -222,12 +222,22 @@ namespace ASC.Core.Caching
                 return GetUserForPersonal(tenant, id);
             }
 
-            var users = GetUsers(tenant);
-            lock (users)
+            var keyForUser = UserServiceCache.GetUserCacheKeyForPersonal(tenant, id);
+            var user = Cache.Get<UserInfo>(keyForUser);
+
+            if(user!=null)
             {
-                users.TryGetValue(id, out var u);
-                return u;
+                return user;
             }
+            else
+            {
+                var usersList = GetUsersProto(tenant);
+                user = usersList.UserInfoListProto.Where(x => x.ID == id).FirstOrDefault();
+            }
+
+            if(user!= null) Cache.Insert(keyForUser, user, CacheExpiration);
+
+            return user;
         }
 
         /// <summary>
@@ -263,11 +273,20 @@ namespace ASC.Core.Caching
 
         public UserInfo SaveUser(int tenant, UserInfo user)
         {
-            var key = UserServiceCache.GetUserCacheKey(tenant);
-            Cache.Remove(key);
+            var users = GetUsersProto(tenant);
+            var keyForUsers = UserServiceCache.GetUserCacheKey(tenant);
 
-            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
-            Cache.Remove(key);
+            Cache.Remove(keyForUsers);
+
+            users.UserInfoListProto.Remove(user);
+            users.UserInfoListProto.Add(user);
+
+            Cache.Insert(keyForUsers, users, CacheExpiration);
+
+            var keyForUser = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
+
+            Cache.Remove(keyForUser);
+            Cache.Insert(keyForUser, user, CacheExpiration);
 
             user = Service.SaveUser(tenant, user);
             return user;
@@ -276,9 +295,17 @@ namespace ASC.Core.Caching
         public void RemoveUser(int tenant, Guid id)
         {
             var key = UserServiceCache.GetUserCacheKey(tenant);
+            var users = GetUsersProto(tenant);
+            var user = users.UserInfoListProto.Where(x => x.ID == id).FirstOrDefault();
+
+            if (user == null) return;
+
             Cache.Remove(key);
 
-            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, id);
+            users.UserInfoListProto.Remove(user);
+            Cache.Insert(key, users, CacheExpiration);
+
+            key = UserServiceCache.GetUserCacheKeyForPersonal(tenant, user.ID);
             Cache.Remove(key);
 
             Service.RemoveUser(tenant, id);
@@ -398,8 +425,11 @@ namespace ASC.Core.Caching
 
         private IDictionary<Guid, UserInfo> GetUsers(int tenant)
         {
-            GetChangesFromDb();
+            return GetUsersProto(tenant).UserInfoListProto.ToDictionary(r => r.ID, r => r);
+        }
 
+        private UserInfoList GetUsersProto(int tenant)
+        {
             var key = UserServiceCache.GetUserCacheKey(tenant);
             var users = Cache.Get<UserInfoList>(key);
             if (users == null)
@@ -408,8 +438,9 @@ namespace ASC.Core.Caching
                 users.UserInfoListProto.AddRange(Service.GetUsers(tenant, default).Values);
                 Cache.Insert(key, users, CacheExpiration);
             }
-            return users.UserInfoListProto.ToDictionary(r => r.ID, r => r);
+            return users;
         }
+
 
         private IDictionary<Guid, Group> GetGroups(int tenant)
         {
