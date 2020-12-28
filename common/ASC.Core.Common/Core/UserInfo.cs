@@ -25,23 +25,18 @@
 
 
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-using ASC.Common;
 using ASC.Common.Caching;
 using ASC.Notify.Recipients;
 
-using Confluent.Kafka;
-
 using Google.Protobuf;
-//using Google.Protobuf.WellKnownTypes;
 
 namespace ASC.Core.Users
 {
     [Serializable]
-    public sealed partial class UserInfo : IDirectRecipient//, ICloneable
+    public sealed partial class UserInfo : IDirectRecipient
     {
         partial void OnConstruction()
         {
@@ -50,8 +45,8 @@ namespace ASC.Core.Users
             LastModified = DateTime.UtcNow;
         }
 
-
-        public Guid ID { 
+        public Guid ID 
+        { 
             get
             {
                 return IDProto.FromByteString();
@@ -61,12 +56,6 @@ namespace ASC.Core.Users
                 IDProto = value.ToByteString();
             }
         }
-
-        //public string FirstName { get; set; }
-
-        //public string LastName { get; set; }
-
-        //public string UserName { get; set; }
 
         public DateTime? BirthDate
         {
@@ -78,11 +67,12 @@ namespace ASC.Core.Users
             }
             set
             {
-                BirthDateProto = (value==null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()):Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value);
+                BirthDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value);
             }
         }
 
-        public bool? Sex { 
+        public bool? Sex
+        {
             get
             {
                 if (SexIsNull) return null;
@@ -118,7 +108,7 @@ namespace ASC.Core.Users
             }
         }
 
-        public DateTime? TerminatedDate
+        public DateTime? TerminatedDate 
         {
             get
             {
@@ -132,9 +122,7 @@ namespace ASC.Core.Users
             }
         }
 
-        //public string Title { get; set; }
-
-        public DateTime? WorkFromDate
+    public DateTime? WorkFromDate
         {
             get
             {
@@ -148,28 +136,7 @@ namespace ASC.Core.Users
             }
         }
 
-        //public string Email { get; set; }
-
-        //private string contacts;
-        //public string Contacts
-        //{
-        //    get => contacts;
-        //    set
-        //    {
-        //        contacts = value;
-        //        ContactsFromString(contacts);
-        //    }
-        //}
-
-        //public List<string> ContactsList { get; set; }
-
-        //public string Location { get; set; }
-
-        //public string Notes { get; set; }
-
-        //public bool Removed { get; set; }
-
-        public DateTime LastModified 
+        public DateTime LastModified
         {
             get
             {
@@ -177,20 +144,14 @@ namespace ASC.Core.Users
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime()); 
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
             }
         }
-
-        //public int Tenant { get; set; }
 
         public bool IsActive
         {
             get { return ((EmployeeActivationStatus)ActivationStatus).HasFlag(EmployeeActivationStatus.Activated); }
         }
-
-        //public string CultureName { get; set; }
-
-        //public string MobilePhone { get; set; }
 
         public MobilePhoneActivationStatus MobilePhoneActivationStatus
         {
@@ -204,43 +165,17 @@ namespace ASC.Core.Users
             }
         }
 
-        //public string Sid { get; set; } // LDAP user identificator
-
-        //public string SsoNameId { get; set; } // SSO SAML user identificator
-
-        //public string SsoSessionId { get; set; } // SSO SAML user session identificator
-
         public DateTime CreateDate
         {
             get
             {
-                return LastModifiedProto.ToDateTime();
+                return CreateDateProto.ToDateTime();
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
+                CreateDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
             }
         }
-
-        //public override string ToString()
-        //{
-        //    return string.Format("{0} {1}", FirstName, LastName).Trim();
-        //}
-
-        //public override int GetHashCode()
-        //{
-        //    return ID.GetHashCode();
-        //}
-
-        //public override bool Equals(object obj)
-        //{
-        //    return obj is UserInfo ui && ID.Equals(ui.ID);
-        //}
-
-        //public bool Equals(UserInfo obj)
-        //{
-        //    return obj != null && ID.Equals(obj.ID);
-        //}
 
         public CultureInfo GetCulture()
         {
@@ -268,12 +203,6 @@ namespace ASC.Core.Users
             get { return this.ToString(); }
         }
 
-        //public object Clone()
-        //{
-        //    return MemberwiseClone();
-        //}
-
-
         internal string ContactsToString()
         {
             if (ContactsList == null || ContactsList.Count == 0) return null;
@@ -295,84 +224,5 @@ namespace ASC.Core.Users
 
             return this;
         }
-
-        //public static implicit operator UserInfo(UserInfoCache cache)
-        //{
-        //    var result = new UserInfo
-        //    {
-        //        ActivationStatus = (EmployeeActivationStatus)cache.ActivationStatus,
-        //        BirthDate = cache.BirthDate.ToDateTime(),
-        //        Contacts = cache.Contacts,
-        //        CreateDate = cache.CreateDate.ToDateTime(),
-        //        CultureName = cache.CultureName,
-        //        Email = cache.Email,
-        //        FirstName = cache.FirstName,
-        //        ID = cache.ID.FromByteString(),
-        //        LastModified = cache.LastModified.ToDateTime(),
-        //        LastName = cache.LastName,
-        //        Location = cache.Location,
-        //        MobilePhone = cache.MobilePhone,
-        //        MobilePhoneActivationStatus = (MobilePhoneActivationStatus)cache.MobilePhoneActivationStatus,
-        //        Notes = cache.Notes,
-        //        Removed = cache.Removed,
-        //        Sex = cache.Sex,
-        //        Sid = cache.Sid,
-        //        SsoNameId = cache.SsoNameId,
-        //        SsoSessionId = cache.SsoSessionId,
-        //        Status = (EmployeeStatus)cache.Status,
-        //        Tenant = cache.Tenant,
-        //        TerminatedDate = cache.TerminatedDate.ToDateTime(),
-        //        Title = cache.Title,
-        //        UserName = cache.UserName,
-        //        WorkFromDate = cache.WorkFromDate.ToDateTime()
-        //    };
-        //    result.ContactsList = new List<string>(cache.ContactsList.Count);
-        //    result.ContactsList.AddRange(cache.ContactsList);
-        //    return result;
-        //}
-
-        //public static implicit operator UserInfoCache(UserInfo origin)
-        //{
-        //    var result = new UserInfoCache
-        //    {
-        //        ActivationStatus = (int)origin.ActivationStatus,
-        //        BirthDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.BirthDate ?? default), //TODO: Design nullable Protobuf Timestamp
-        //        Contacts = origin.Contacts,
-        //        CreateDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.CreateDate),
-        //        CultureName = origin.CultureName,
-        //        Email = origin.Email,
-        //        FirstName = origin.FirstName,
-        //        ID = origin.ID.ToByteString(),
-        //        LastModified = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.LastModified),
-        //        LastName = origin.LastName,
-        //        Location = origin.Location,
-        //        MobilePhone = origin.MobilePhone,
-        //        MobilePhoneActivationStatus = (int)origin.MobilePhoneActivationStatus,
-        //        Notes = origin.Notes,
-        //        Removed = origin.Removed,
-        //        Sex = (bool)origin.Sex,
-        //        Sid = origin.Sid,
-        //        SsoNameId = origin.SsoNameId,
-        //        SsoSessionId = origin.SsoSessionId,
-        //        Status = (int)origin.Status,
-        //        Tenant = origin.Tenant,
-        //        TerminatedDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.TerminatedDate ?? default),
-        //        Title = origin.Title,
-        //        UserName = origin.UserName,
-        //        WorkFromDate = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(origin.WorkFromDate ?? default)
-        //    };
-        //    result.ContactsList.AddRange(origin.ContactsList);
-        //    return result;
-        //}
-        //public byte[] Serialize(UserInfo data, SerializationContext context)
-        //{
-        //    return ((UserInfo)data).ToByteArray();
-        //}
-
-        //public UserInfo Deserialize(ReadOnlySpan<byte> data, bool isNull, SerializationContext context)
-        //{
-        //    var parser = new MessageParser<UserInfo>(() => new UserInfo());
-        //    return (UserInfo)(parser.ParseFrom(data.ToArray()));
-        //}
     }
 }
