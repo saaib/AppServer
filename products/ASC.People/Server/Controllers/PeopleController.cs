@@ -729,7 +729,7 @@ namespace ASC.Employee.Core.Controllers
             UserManager.DeleteUser(user.ID);
             QueueWorkerRemove.Start(Tenant.TenantId, user, SecurityContext.CurrentAccount.ID, false);
 
-            MessageService.Send(MessageAction.UserDeleted, MessageTarget.Create(user.ID), userName);
+            //MessageService.Send(MessageAction.UserDeleted, MessageTarget.Create(user.ID), userName);
 
             return EmployeeWraperFullHelper.GetFull(user);
         }
