@@ -33,10 +33,44 @@ using ASC.Notify.Recipients;
 
 using Google.Protobuf;
 
+namespace ASC.Core
+{
+    public sealed partial class GroupList : ICustomSer<GroupList>
+    {
+        public void CustomDeSer()
+        {
+        }
+
+        public void CustomSer()
+        {
+        }
+    }
+}
+
 namespace ASC.Core.Users
 {
+
+    public sealed partial class UserInfoList : ICustomSer<UserInfoList>
+    {
+        public void CustomDeSer()
+        {
+            foreach (var u in this.UserInfoListProto)
+            {
+                u.CustomDeSer();
+            }
+        }
+
+        public void CustomSer()
+        {
+            foreach(var u in this.UserInfoListProto)
+            {
+                u.CustomSer();
+            }
+        }
+    }
+
     [Serializable]
-    public sealed partial class UserInfo : IDirectRecipient
+    public sealed partial class UserInfo : IDirectRecipient, ICustomSer<UserInfo>
     {
         partial void OnConstruction()
         {
@@ -45,43 +79,21 @@ namespace ASC.Core.Users
             LastModified = DateTime.UtcNow;
         }
 
-        public Guid ID 
-        { 
-            get
-            {
-                return IDProto.FromByteString();
-            }
-            set
-            {
-                IDProto = value.ToByteString();
-            }
-        }
+        public Guid ID { get; set; }
+        public DateTime? BirthDate { get; set; }
 
-        public DateTime? BirthDate
-        {
-            get
-            {
-                if (BirthDateProto == null) return null;
-                var result = BirthDateProto.ToDateTime();
-                if (result == DateTime.MinValue) return null; else return result;
-            }
-            set
-            {
-                BirthDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value);
-            }
-        }
-
+        private bool? sex;
         public bool? Sex
         {
             get
             {
-                if (SexIsNull) return null;
-                else return SexProto;
+                return sex;
             }
             set
             {
                 SexIsNull = !value.HasValue;
                 SexProto = value ?? default;
+                sex = value;
             }
         }
 
@@ -108,49 +120,48 @@ namespace ASC.Core.Users
             }
         }
 
+        private DateTime? terminatedDate;
         public DateTime? TerminatedDate 
         {
             get
             {
-                if (TerminatedDateProto == null) return null;
-                var result = TerminatedDateProto.ToDateTime();
-                if (result == DateTime.MinValue) return null; else return result;
+                return terminatedDate;
             }
             set
             {
-                TerminatedDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value.ToUniversalTime());
+                terminatedDate = value;
             }
         }
 
+        private DateTime? workFromDate;
     public DateTime? WorkFromDate
         {
             get
             {
-                if (WorkFromDateProto == null) return null;
-                var result = WorkFromDateProto.ToDateTime();
-                if (result == DateTime.MinValue) return null; else return result;
+                return workFromDate;
             }
             set
             {
-                WorkFromDateProto = (value == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.Value.ToUniversalTime());
+                workFromDate = value;
             }
         }
 
+        private DateTime lastModified;
         public DateTime LastModified
         {
             get
             {
-                return LastModifiedProto.ToDateTime();
+                return lastModified;
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
+                lastModified = value;
             }
         }
 
         public bool IsActive
         {
-            get { return ((EmployeeActivationStatus)ActivationStatus).HasFlag(EmployeeActivationStatus.Activated); }
+            get { return ActivationStatus.HasFlag(EmployeeActivationStatus.Activated); }
         }
 
         public MobilePhoneActivationStatus MobilePhoneActivationStatus
@@ -165,15 +176,16 @@ namespace ASC.Core.Users
             }
         }
 
+        private DateTime createDate;
         public DateTime CreateDate
         {
             get
             {
-                return CreateDateProto.ToDateTime();
+                return createDate;
             }
             set
             {
-                CreateDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value.ToUniversalTime());
+                createDate = value;
             }
         }
 
@@ -223,6 +235,37 @@ namespace ASC.Core.Users
             ContactsList.AddRange(contacts.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries));
 
             return this;
+        }
+
+        public void CustomSer()
+        {
+            IDProto = ID.ToByteString();
+            BirthDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime());
+            TerminatedDateProto = (TerminatedDate == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(TerminatedDate.Value.ToUniversalTime());
+            CreateDateProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(CreateDate.ToUniversalTime());
+            WorkFromDateProto = (WorkFromDate == null) ? Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime()) : Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(WorkFromDate.Value.ToUniversalTime());
+            LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(LastModified.ToUniversalTime());
+        }
+
+        public void CustomDeSer()
+        {
+            ID = IDProto.FromByteString();
+            if (BirthDateProto != null)
+            {
+                var result = BirthDateProto.ToDateTime();
+                if (result != DateTime.MinValue)
+                {
+                    BirthDate = result;
+                }
+            }
+            if (TerminatedDateProto != null)
+            {
+                var result = TerminatedDateProto.ToDateTime();
+                if (result != DateTime.MinValue)
+                {
+                    TerminatedDate = result;
+                }
+            }
         }
     }
 }

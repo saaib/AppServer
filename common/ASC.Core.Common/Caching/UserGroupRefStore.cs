@@ -29,13 +29,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-using Confluent.Kafka;
-
-using Google.Protobuf;
+using ASC.Common.Caching;
 
 namespace ASC.Core.Caching
 {
-    partial class UserGroupRefStore : IDictionary<string, UserGroupRef>
+    partial class UserGroupRefStore : IDictionary<string, UserGroupRef>, ICustomSer<UserGroupRefStore>
     {
         //private readonly IDictionary<string, UserGroupRef> refs;
         private ILookup<Guid, UserGroupRef> index;
@@ -159,6 +157,16 @@ namespace ASC.Core.Caching
         private void RebuildIndex()
         {
             changed = true;
+        }
+
+        public void CustomSer()
+        {
+            
+        }
+
+        public void CustomDeSer()
+        {
+            
         }
     }
 }

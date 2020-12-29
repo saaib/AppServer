@@ -102,9 +102,9 @@ namespace ASC.Core.Data
                 Notes = user.Notes,
                 Removed = user.Removed,
                 Sex = user.Sex??false, //TODO:Create nullable protobuf sex
-                Sid = user.Sid,
-                SsoNameId = user.SsoNameId,
-                SsoSessionId = user.SsoSessionId,
+                Sid = user.Sid ?? "",
+                SsoNameId = user.SsoNameId ?? "",
+                SsoSessionId = user.SsoSessionId ?? "",
                 Status = user.Status,
                 Tenant = user.Tenant,
                 TerminatedDate = user.TerminatedDate,
@@ -149,7 +149,7 @@ namespace ASC.Core.Data
                 Name = group.Name,
                 CategoryId = group.CategoryId ?? Guid.Empty,
                 ParentId = group.ParentId ?? Guid.Empty,
-                Sid = group.Sid,
+                Sid = group.Sid ?? "",
                 Removed = group.Removed,
                 LastModified = group.LastModified,
                 Tenant = group.Tenant

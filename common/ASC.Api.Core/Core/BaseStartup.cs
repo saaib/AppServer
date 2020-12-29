@@ -15,11 +15,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Mvc.Formatters;
-using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
 
 
 namespace ASC.Api.Core
@@ -83,7 +81,7 @@ namespace ASC.Api.Core
             DIHelper.TryAdd<TenantStatusFilter>();
             DIHelper.TryAdd<ConfirmAuthHandler>();
             DIHelper.TryAdd(typeof(ICacheNotify<>), typeof(KafkaCache<>));
-            DIHelper.TryAdd<DistributedCache>();
+            //DIHelper.TryAdd<DistributedCache<>>();
 
             var builder = services.AddMvcCore(config =>
             {

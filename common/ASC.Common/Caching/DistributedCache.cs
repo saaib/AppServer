@@ -1,39 +1,49 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Text;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
+
 using ASC.Common.Logging;
+
 using Google.Protobuf;
-using Confluent.Kafka;
+
 using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Options;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.IO;
-using System.Reflection;
-using System.Diagnostics;
 
 namespace ASC.Common.Caching
 {
-    [Singletone]
-    public class DistributedCache
+    public interface ICustomSer<T> where T : IMessage<T>
+    {
+        void CustomSer();
+        void CustomDeSer();
+    }
+
+    [Scope]
+    public class DistributedCache<T> where T : IMessage<T>, ICustomSer<T>, new()
     {
         private ILog Log { get; set; }
         public readonly IDistributedCache cache;
+        public readonly IDictionary<string, T> cache1;
 
         public DistributedCache(IDistributedCache cache, IOptionsMonitor<ILog> options)
         {
             this.cache = cache;
             Log = options.Get("ASC.Web.Api");
             Log.Info("DistributedCache loaded.");
+            cache1 = new Dictionary<string, T>();
         }
 
-        public T Get<T>(string key) where T : IMessage<T>, new()
+        public T Get(string key) 
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
 
-            var binatyData=cache.Get(key);
+            if (cache1.ContainsKey(key))
+            {
+                return cache1[key];
+            }
+
+            var binatyData = cache.Get(key);
 
             if (binatyData != null)
             {
@@ -42,9 +52,12 @@ namespace ASC.Common.Caching
                     Stopwatch sw1 = new Stopwatch();
                     sw1.Start();
 
-                    var parser = new MessageParser<T>(() => new T());
-                    var result=parser.ParseFrom(binatyData);
+                    var parser = new MessageParser<T>(() =>new T());
 
+                    var result = parser.ParseFrom(binatyData);
+                    result.CustomDeSer();
+
+                    cache1.Add(key, result);
                     sw1.Stop();
                     Log.Info($"DistributedCache: Key {key} parsed in {sw1.Elapsed.TotalMilliseconds} ms.");
 
@@ -68,12 +81,13 @@ namespace ASC.Common.Caching
             Log.Info($"DistributedCache: Key {key} not found in {sw.Elapsed.TotalMilliseconds} ms.");
             return default;
         }
-        public byte[] Get(string key)
+
+        public byte[] GetClean(string key)
         {
             return cache.Get(key);
         }
 
-        public void Insert<T>(string key, T value, TimeSpan sligingExpiration) where T : IMessage<T>, new()
+        public void Insert(string key, T value, TimeSpan sligingExpiration)
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -84,6 +98,8 @@ namespace ASC.Common.Caching
 
             try
             {
+                var parser = new MessageParser<T>(() => new T());
+                value.CustomSer();
                 cache.Set(key, value.ToByteArray(), opt);
             }
             catch (Exception ex)
@@ -94,7 +110,7 @@ namespace ASC.Common.Caching
             Log.Info($"DistributedCache: Key {key} Insert in {sw.Elapsed.TotalMilliseconds} ms.");
         }
 
-        public void Insert<T>(string key, T value, DateTime absolutExpiration) where T : IMessage<T>, new()
+        public void Insert(string key, T value, DateTime absolutExpiration)
         {
             Stopwatch sw = new Stopwatch();
             sw.Start();
@@ -105,6 +121,7 @@ namespace ASC.Common.Caching
 
             try
             {
+                value.CustomSer();
                 cache.Set(key, value.ToByteArray(), opt);
             }
             catch (Exception ex)
@@ -115,6 +132,7 @@ namespace ASC.Common.Caching
             sw.Stop();
             Log.Info($"DistributedCache: Key {key} Insert in {sw.Elapsed.TotalMilliseconds} ms.");
         }
+
         public void Insert(string key, byte[] value, TimeSpan sligingExpiration)
         {
             DistributedCacheEntryOptions opt = new DistributedCacheEntryOptions()

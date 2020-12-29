@@ -76,7 +76,7 @@ namespace ASC.Core
             }
             set
             {
-                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(value);
+                LastModifiedProto = Google.Protobuf.WellKnownTypes.Timestamp.FromDateTime(DateTime.MinValue.ToUniversalTime());
             }
         }
     }
