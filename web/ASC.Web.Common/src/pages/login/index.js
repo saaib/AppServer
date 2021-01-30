@@ -12,6 +12,7 @@ import {
   Checkbox,
   PasswordInput,
   FieldContainer,
+  SocialButton,
 } from "asc-web-components";
 import PageLayout from "../../components/PageLayout";
 import { connect } from "react-redux";
@@ -139,7 +140,7 @@ class Form extends Component {
       email: "",
       emailError: false,
       errorText: "",
-      socialButtons: [],
+      socialButtons: ["google", "facebook", "twitter", "linkedin"],
     };
   }
 
@@ -428,13 +429,21 @@ class Form extends Component {
             </Text> */}
 
             {socialButtons.length ? (
-              <Box displayProp="flex" alignItems="center">
-                <div className="login-bottom-border"></div>
-                <Text className="login-bottom-text" color="#A3A9AE">
-                  {t("Or")}
-                </Text>
-                <div className="login-bottom-border"></div>
-              </Box>
+              <>
+                <Box displayProp="flex" alignItems="center">
+                  <div className="login-bottom-border"></div>
+                  <Text className="login-bottom-text" color="#A3A9AE">
+                    {t("Or")}
+                  </Text>
+                  <div className="login-bottom-border"></div>
+                </Box>
+                <Box displayProp="flex" alignItems="center">
+                  <SocialButton iconName={"ShareGoogleIcon"} label={"Google"} />
+                  <SocialButton iconName={"ShareFacebookIcon"} />
+                  <SocialButton iconName={"ShareTwitterIcon"} />
+                  <SocialButton iconName={"ShareLinkedInIcon"} />
+                </Box>
+              </>
             ) : null}
           </form>
         </LoginContainer>
