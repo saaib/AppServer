@@ -30,7 +30,7 @@ const StyledSocialButton = styled(ButtonWrapper).attrs((props) => ({
   margin: 20px 0 0 20px;
   padding: 0;
   border-radius: 2px;
-  width: 201px;
+  width: ${(props) => (props.label.length > 0 ? "107px" : "40px")};
   height: 40px;
   text-align: left;
   touch-callout: none;
@@ -79,14 +79,14 @@ const StyledSocialButton = styled(ButtonWrapper).attrs((props) => ({
 
   .social_button_text {
     position: absolute;
-    width: 142px;
+    width: 100%;
     height: 16px;
-    margin: 12px 9px 12px 10px;
+    margin: 12px 9px 12px 11px;
     font-family: Roboto, "Open Sans", sans-serif, Arial;
     font-style: normal;
     font-weight: 500;
     font-size: 14px;
-    line-height: 16px;
+    line-height: 14px;
     letter-spacing: 0.21875px;
     user-select: none;
     overflow: hidden;
