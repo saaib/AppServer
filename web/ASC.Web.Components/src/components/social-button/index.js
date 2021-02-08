@@ -27,10 +27,8 @@ const StyledSocialButton = styled(ButtonWrapper).attrs((props) => ({
   display: inline-block;
   font-weight: 600;
   text-decoration: none;
-  margin: 20px 0 0 20px;
   padding: 0;
   border-radius: 2px;
-  width: ${(props) => (props.label.length > 0 ? "107px" : "40px")};
   height: 40px;
   text-align: left;
   touch-callout: none;
@@ -78,13 +76,13 @@ const StyledSocialButton = styled(ButtonWrapper).attrs((props) => ({
         `};
 
   .social_button_text {
-    position: absolute;
+    position: relative;
     width: 100%;
     height: 16px;
-    margin: 12px 9px 12px 11px;
+    margin: 0 11px;
     font-family: Roboto, "Open Sans", sans-serif, Arial;
     font-style: normal;
-    font-weight: 500;
+    font-weight: 600;
     font-size: 14px;
     line-height: 14px;
     letter-spacing: 0.21875px;
@@ -92,6 +90,7 @@ const StyledSocialButton = styled(ButtonWrapper).attrs((props) => ({
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: #757575;
   }
 
   svg {
@@ -109,10 +108,10 @@ class SocialButton extends React.Component {
   }
 
   render() {
-    const { label, iconName } = this.props;
+    const { label, iconName, iconOptions } = this.props;
     return (
       <StyledSocialButton {...this.props}>
-        {React.createElement(Icons[iconName], {})}
+        {React.createElement(Icons[iconName], iconOptions)}
 
         {label && (
           <Text as="span" className="social_button_text">
@@ -132,6 +131,8 @@ SocialButton.propTypes = {
   className: PropTypes.string,
   id: PropTypes.string,
   style: PropTypes.oneOfType([PropTypes.object, PropTypes.array]),
+  onClick: PropTypes.func,
+  iconOptions: PropTypes.object,
 };
 
 SocialButton.defaultProps = {
@@ -139,6 +140,7 @@ SocialButton.defaultProps = {
   iconName: "SocialButtonGoogleIcon",
   tabIndex: -1,
   isDisabled: false,
+  iconOptions: {},
 };
 
 export default SocialButton;
