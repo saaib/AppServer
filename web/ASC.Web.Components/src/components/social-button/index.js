@@ -108,9 +108,9 @@ class SocialButton extends React.Component {
   }
 
   render() {
-    const { label, iconName, iconOptions } = this.props;
+    const { label, iconName, iconOptions, ...otherProps } = this.props;
     return (
-      <StyledSocialButton {...this.props}>
+      <StyledSocialButton {...otherProps}>
         {React.createElement(Icons[iconName], iconOptions)}
 
         {label && (
