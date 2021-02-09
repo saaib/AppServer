@@ -793,7 +793,7 @@ class SectionBodyContent extends React.Component {
 
     return options.map((option) => {
       switch (option) {
-        case "open":
+        case "foldersOpen":
           return {
             key: option,
             label: t("Open"),
@@ -801,7 +801,7 @@ class SectionBodyContent extends React.Component {
             onClick: this.onOpenLocation,
             disabled: false,
           };
-        case "show-version-history":
+        case "versions":
           return {
             key: option,
             label: t("ShowVersionHistory"),
@@ -810,7 +810,7 @@ class SectionBodyContent extends React.Component {
             disabled: false,
             "data-id": item.id,
           };
-        case "finalize-version":
+        case "completeVersion":
           return {
             key: option,
             label: t("FinalizeVersion"),
@@ -825,7 +825,7 @@ class SectionBodyContent extends React.Component {
         case "separator2":
         case "separator3":
           return { key: option, isSeparator: true };
-        case "open-location":
+        case "openLocation":
           return {
             key: option,
             label: t("OpenLocation"),
@@ -833,7 +833,7 @@ class SectionBodyContent extends React.Component {
             onClick: this.onOpenLocation,
             disabled: false,
           };
-        case "mark-as-favorite":
+        case "addFavorite":
           return {
             key: option,
             label: t("MarkAsFavorite"),
@@ -844,7 +844,8 @@ class SectionBodyContent extends React.Component {
             "data-id": item.id,
             "data-title": item.title,
           };
-        case "block-unblock-version":
+        case "lock":
+        case "unlock":
           return {
             key: option,
             label: t("UnblockVersion"),
@@ -852,7 +853,7 @@ class SectionBodyContent extends React.Component {
             onClick: this.lockFile,
             disabled: false,
           };
-        case "sharing-settings":
+        case "shareAccess":
           return {
             key: option,
             label: t("SharingSettings"),
@@ -860,14 +861,14 @@ class SectionBodyContent extends React.Component {
             onClick: this.onClickShare,
             disabled: isSharable,
           };
-        case "send-by-email":
+        case "sendInEmail":
           return {
             key: option,
             label: t("SendByEmail"),
             icon: "MailIcon",
             disabled: true,
           };
-        case "owner-change":
+        case "changeOwner":
           return {
             key: option,
             label: t("ChangeOwner"),
@@ -875,7 +876,7 @@ class SectionBodyContent extends React.Component {
             onClick: this.onOwnerChange,
             disabled: false,
           };
-        case "link-for-portal-users":
+        case "getLink":
           return {
             key: option,
             label: t("LinkForPortalUsers"),
@@ -952,7 +953,7 @@ class SectionBodyContent extends React.Component {
             disabled: false,
           };
 
-        case "change-thirdparty-info":
+        case "foldersChangeThirdparty":
           return {
             key: option,
             label: t("ThirdPartyInfo"),
@@ -962,7 +963,7 @@ class SectionBodyContent extends React.Component {
             "data-provider-key": item.providerKey,
           };
 
-        case "delete":
+        case "remove":
           return {
             key: option,
             label: isThirdPartyFolder ? t("DeleteThirdParty") : t("Delete"),
@@ -973,7 +974,7 @@ class SectionBodyContent extends React.Component {
             "data-id": item.id,
             "data-title": item.title,
           };
-        case "remove-from-favorites":
+        case "removeFavorite":
           return {
             key: option,
             label: t("RemoveFromFavorites"),

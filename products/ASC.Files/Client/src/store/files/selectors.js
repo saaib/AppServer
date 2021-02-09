@@ -707,18 +707,148 @@ const getFilesContextOptions = (
   haveAccess,
   canShare,
   isPrivacy,
-  isRootFolder
+  isRootFolder,
+  canConvert
 ) => {
-  const options = [];
-
   const isFile = !!item.fileExst;
-  const isFavorite = item.fileStatus === 32;
+  const isFileToFavorite = item.fileStatus === 32;
   const isFullAccess = item.access < 2;
   const isThirdPartyFolder = item.providerKey && isRootFolder;
 
+  const isEditing = false; //TODO: add current editing flag
+
   if (item.id <= 0) return [];
 
-  if (isRecycleBin) {
+  let options = [
+    "edit",
+    "preview",
+    "view",
+    "foldersOpen",
+    "separator0",
+    "shareAccess",
+    "getExternalLink",
+    "changeOwner",
+    "getLink",
+    "sendInEmail",
+    "versions",
+    "completeVersion",
+    "lock",
+    "unlock",
+    "separator1",
+    "openLocation",
+    "markRead",
+    "addFavorite",
+    "download",
+    "filesConvert",
+    "move",
+    "copy",
+    "duplicate",
+    "restore",
+    "rename",
+    "foldersChangeThirdparty",
+    "separator2",
+    "removeFavorite",
+    "unsubscribe",
+    "remove",
+  ];
+
+  const extractOption = (extracted) =>
+    options.filter((o) => !extracted.includes(o));
+
+  if (isFile) {
+    options = extractOption(["foldersOpen"]);
+
+    if (!canConvert || item.encrypted || item.pureContentLength > 10485760) {
+      options = extractOption(["filesConvert"]);
+    }
+
+    if (canOpenPlayer) {
+      options = extractOption(["edit", "preview"]);
+    } else {
+      options = extractOption(["view"]);
+    }
+
+    if (item.version > 1 || isThirdPartyFolder) {
+      options = extractOption(["completeVersion", "versions"]);
+    }
+
+    if (isEditing) {
+      options = extractOption(["completeVersion", "move", "remove"]);
+
+      if (isThirdPartyFolder) {
+        options = extractOption(["rename"]);
+      }
+    }
+
+    if (isFavorites || isFileToFavorite) {
+      options = extractOption(["addFavorite"]);
+    } else {
+      options = extractOption(["removeFavorite"]);
+    }
+
+    if (!haveAccess || isEditing) {
+      options = extractOption(["edit"]);
+    }
+
+    if (item.encrypted) {
+      options = extractOption([
+        "edit",
+        "foldersOpen",
+        "getLink",
+        "getExternalLink",
+        "sendInEmail",
+        "completeVersion",
+        "lock",
+        "unlock",
+        "copy",
+        "addFavorite",
+      ]);
+    }
+
+    if (isRecycleBin) {
+      options = extractOption([
+        "foldersOpen",
+        "openLocation",
+        "edit",
+        "getLink",
+        "shareAccess",
+        "getExternalLink",
+        "sendInEmail",
+        "completeVersion",
+        "lock",
+        "unlock",
+        "versions",
+        "move",
+        "copy",
+        "markRead",
+        "addFavorite",
+        "removeFavorite",
+        "rename",
+      ]);
+    } else {
+      options = extractOption(["restore"]);
+    }
+
+    if (!haveAccess || !isFullAccess) {
+      options = extractOption(["completeVersion", "rename", "lock"]);
+    }
+
+    if (isVisitor) {
+      options = extractOption([
+        "lock",
+        "completeVersion",
+        "addFavorite",
+        "removeFavorite",
+      ]);
+
+      if (!haveAccess) {
+        options = extractOption(["rename"]);
+      }
+    }
+  } else {
+  }
+
+  /*   if (isRecycleBin) {
     options.push("download");
     options.push("download-as");
     options.push("restore");
@@ -742,8 +872,7 @@ const getFilesContextOptions = (
       options.push("separator0");
     }
 
-    //TODO: use canShare selector
-    if (/*!(isRecent || isFavorites || isVisitor) && */ canShare) {
+    if (canShare) {
       options.push("sharing-settings");
     }
 
@@ -808,8 +937,7 @@ const getFilesContextOptions = (
 
   if (isFavorite && !isRecycleBin) {
     options.push("remove-from-favorites");
-  }
-
+  } */
   return options;
 };
 
@@ -1050,7 +1178,8 @@ export const getFilesList = (state) => {
           haveAccess,
           canShare,
           isPrivacy,
-          isRootFolder
+          isRootFolder,
+          canConvert(item.fileExst)
         );
         const checked = isFileSelected(selection, id, parentId);
 
