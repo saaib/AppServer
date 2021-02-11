@@ -547,17 +547,13 @@ class UpdateUserForm extends React.Component {
     this.setIsEdit();
   }
 
-  onClickGoogleConnect = () => {
-    console.log("Connect to Google");
-  };
-  onClickFacebookConnect = () => {
-    console.log("Connect to Facebook");
-  };
-  onClickTwitterConnect = () => {
-    console.log("Connect to Twitter");
-  };
-  onClickLinkedInConnect = () => {
-    console.log("Connect to LinkedIn");
+  onClickConnect = (e) => {
+    const link = e.target.href;
+    window.open(
+      link,
+      "login",
+      "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
+    );
   };
 
   render() {
@@ -866,8 +862,9 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickGoogleConnect}
+              onClick={this.onClickConnect}
               isHovered={true}
+              href="/login.ashx?auth=Google&mode=popup&callback=loginCallback"
             >
               {t("Connect")}
             </Link>
@@ -883,8 +880,9 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickFacebookConnect}
+              onClick={this.onClickConnect}
               isHovered={true}
+              href="/login.ashx?auth=Facebook&mode=popup&callback=loginCallback"
             >
               {t("Connect")}
             </Link>
@@ -899,8 +897,9 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickTwitterConnect}
+              onClick={this.onClickConnect}
               isHovered={true}
+              href="/login.ashx?auth=Twitter&mode=popup&callback=loginCallback"
             >
               {t("Connect")}
             </Link>
@@ -914,8 +913,9 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickLinkedInConnect}
+              onClick={this.onClickConnect}
               isHovered={true}
+              href="/login.ashx?auth=LinkedIn&mode=popup&callback=loginCallback"
             >
               {t("Connect")}
             </Link>
