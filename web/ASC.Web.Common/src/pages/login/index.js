@@ -35,15 +35,20 @@ const LoginContainer = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 120px auto 0 auto;
+  margin: 60px auto 0 auto;
   max-width: 960px;
+
+  .buttons-box {
+    justify-content: center;
+    margin-top: 30px;
+  }
 
   @media (max-width: 768px) {
     padding: 0 16px;
     max-width: 475px;
   }
   @media (max-width: 375px) {
-    margin: 72px auto 0 auto;
+    margin: 20px auto 0 auto;
     max-width: 311px;
   }
 
@@ -93,7 +98,7 @@ const LoginContainer = styled.div`
     }
 
     .login-button {
-      margin-bottom: 16px;
+      margin-bottom: 30px;
     }
 
     .login-button-dialog {
@@ -437,7 +442,12 @@ class Form extends Component {
                   </Text>
                   <div className="login-bottom-border"></div>
                 </Box>
-                <Box displayProp="flex" alignItems="center">
+                <Box
+                  className="buttons-box"
+                  displayProp="flex"
+                  alignItems="center"
+                  justify-content="center"
+                >
                   <SocialButton iconName={"ShareGoogleIcon"} label={"Google"} />
                   <SocialButton iconName={"ShareFacebookIcon"} />
                   <SocialButton iconName={"ShareTwitterIcon"} />
