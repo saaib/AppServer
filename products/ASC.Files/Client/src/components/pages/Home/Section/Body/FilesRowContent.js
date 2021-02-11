@@ -53,7 +53,7 @@ import EditingWrapperComponent from "./EditingWrapperComponent";
 import { isMobile } from "react-device-detect";
 import { setEncryptionAccess } from "../../../../../helpers/desktop";
 
-const { FileAction } = constants;
+const { FileAction, ShareAccessRights } = constants;
 const sideColor = "#A3A9AE";
 const { getSettings, isDesktopClient } = initStore.auth.selectors;
 const { getEncryptionAccess, replaceFileStream } = initStore.auth.actions;
@@ -79,6 +79,7 @@ const SimpleFilesRowContent = styled(RowContent)`
 
   .favorite {
     cursor: pointer;
+    margin-right: 6px;
   }
 
   .share-icon {
@@ -534,6 +535,9 @@ class FilesRowContent extends React.PureComponent {
         createdBy.displayName);
     const updatedDate = updated && this.getStatusByDate();
 
+    const accessToEdit =
+      item.access === ShareAccessRights.FullAccess ||
+      item.access === ShareAccessRights.None; // TODO: fix access type for owner (now - None)
     const isEdit = id === editingId && fileExst === fileAction.extension;
     const linkStyles =
       isTrashFolder || window.innerWidth <= 1024
@@ -541,7 +545,6 @@ class FilesRowContent extends React.PureComponent {
         : { onClick: this.onFilesClick };
     const showNew = !!newItems;
 
-    //console.log(fileStatus);
     return isEdit ? (
       <EditingWrapperComponent
         itemTitle={itemTitle}
@@ -614,7 +617,7 @@ class FilesRowContent extends React.PureComponent {
                     hoverColor="#3B72A7"
                   />
                 )} */}
-                {canWebEdit && !isTrashFolder && (
+                {canWebEdit && !isTrashFolder && accessToEdit && (
                   <IconButton
                     onClick={this.onFilesClick}
                     iconName="AccessEditIcon"
@@ -625,7 +628,18 @@ class FilesRowContent extends React.PureComponent {
                     hoverColor="#3B72A7"
                   />
                 )}
-                {fileStatus === 96 && !isTrashFolder && (
+                {locked && (
+                  <Icons.FileActionsLockedIcon
+                    className="badge lock-file"
+                    size="small"
+                    isfill={true}
+                    color="#3B72A7"
+                    data-id={item.id}
+                    data-locked={true}
+                    onClick={this.props.onClickLock}
+                  />
+                )}
+                {fileStatus === 32 && !isTrashFolder && (
                   <Icons.FavoriteIcon
                     className="favorite"
                     size="small"
@@ -641,17 +655,6 @@ class FilesRowContent extends React.PureComponent {
                     size="small"
                     isfill={true}
                     color="#3B72A7"
-                  />
-                )}
-                {locked && (
-                  <Icons.FileActionsLockedIcon
-                    className="badge lock-file"
-                    size="small"
-                    isfill={true}
-                    color="#3B72A7"
-                    data-id={item.id}
-                    data-locked={true}
-                    onClick={this.props.onClickLock}
                   />
                 )}
                 {versionGroup > 1 && (
