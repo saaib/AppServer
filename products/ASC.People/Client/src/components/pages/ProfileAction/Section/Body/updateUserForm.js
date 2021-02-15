@@ -33,6 +33,7 @@ import {
   setIsVisibleDataLossDialog,
   setIsEditingForm,
   toggleAvatarEditor,
+  getOAuthToken,
 } from "../../../../../store/people/actions";
 import { getDisableProfileType } from "../../../../../store/profile/selectors";
 import {
@@ -57,6 +58,7 @@ import {
 } from "../../../../dialogs";
 import { isMobile } from "react-device-detect";
 const { createThumbnailsAvatar, loadAvatar, deleteAvatar } = api.people;
+const { getAuthProviders, linkProvider } = api.settings;
 const { isTablet } = utils.device;
 const { isAdmin } = store.auth.selectors;
 
@@ -87,6 +89,13 @@ const StyledWrapper = styled.div`
   grid-template-columns: auto 1fr;
   grid-gap: 16px 22px;
 `;
+
+const providers = Object.freeze({
+  google: "Google",
+  facebook: "Facebook",
+  twitter: "Twitter",
+  linkedIn: "LinkedIn",
+});
 
 class UpdateUserForm extends React.Component {
   constructor(props) {
@@ -121,6 +130,12 @@ class UpdateUserForm extends React.Component {
     this.onRemoveGroup = this.onRemoveGroup.bind(this);
 
     this.mainFieldsContainerRef = React.createRef();
+  }
+
+  componentDidMount() {
+    getAuthProviders(true, true, "loginCallback").then((providers) => {
+      console.log(providers);
+    });
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -547,13 +562,44 @@ class UpdateUserForm extends React.Component {
     this.setIsEdit();
   }
 
-  onClickConnect = (e) => {
+  onClickGoogle = (e) => {
+    e.preventDefault();
+    this.linkAccount(providers.google, e);
+  };
+
+  onClickFacebook = (e) => {
+    e.preventDefault();
+    this.linkAccount(providers.facebook, e);
+  };
+
+  onClickTwitter = (e) => {
+    e.preventDefault();
+    this.linkAccount(providers.twitter, e);
+  };
+
+  onClickLinkedIn = (e) => {
+    e.preventDefault();
+    this.linkAccount(providers.linkedIn, e);
+  };
+
+  linkAccount = (providerName, e) => {
     const link = e.target.href;
-    window.open(
-      link,
-      "login",
-      "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
-    );
+
+    try {
+      window.open(
+        link,
+        "login",
+        "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
+      );
+
+      getOAuthToken().then((code) => {
+        const token = window.btoa(JSON.stringify({ auth: providerName }));
+
+        linkProvider(token, code);
+      });
+    } catch (err) {
+      console.log(err);
+    }
   };
 
   render() {
@@ -862,7 +908,7 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickConnect}
+              onClick={this.onClickGoogle}
               isHovered={true}
               href="/login.ashx?auth=Google&mode=popup&callback=loginCallback"
             >
@@ -880,7 +926,7 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickConnect}
+              onClick={this.onClickFacebook}
               isHovered={true}
               href="/login.ashx?auth=Facebook&mode=popup&callback=loginCallback"
             >
@@ -897,7 +943,7 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickConnect}
+              onClick={this.onClickTwitter}
               isHovered={true}
               href="/login.ashx?auth=Twitter&mode=popup&callback=loginCallback"
             >
@@ -913,7 +959,7 @@ class UpdateUserForm extends React.Component {
             <Link
               type="action"
               color="A3A9AE"
-              onClick={this.onClickConnect}
+              onClick={this.onClickLinkedIn}
               isHovered={true}
               href="/login.ashx?auth=LinkedIn&mode=popup&callback=loginCallback"
             >

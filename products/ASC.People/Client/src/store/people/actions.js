@@ -265,6 +265,25 @@ export function updateUserType(type, userIds) {
   };
 }
 
+export function getOAuthToken() {
+  return new Promise((resolve) => {
+    localStorage.removeItem("code");
+    const interval = setInterval(() => {
+      try {
+        const code = localStorage.getItem("code");
+
+        if (code) {
+          localStorage.removeItem("code");
+          clearInterval(interval);
+          resolve(code);
+        }
+      } catch {
+        return;
+      }
+    }, 500);
+  });
+}
+
 export function resetFilter() {
   return (dispatch, getState) => {
     const { people } = getState();
