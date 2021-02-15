@@ -15,6 +15,12 @@ const client = axios.create({
   timeout: 30000, // default is `0` (no timeout)
 });
 
+const clientOrigin = axios.create({
+  baseURL: window.location.origin,
+  responseType: "json",
+  timeout: 30000, // default is `0` (no timeout)
+});
+
 client.interceptors.response.use(
   (response) => {
     return response;
@@ -40,8 +46,37 @@ client.interceptors.response.use(
   }
 );
 
+clientOrigin.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (!error.response) return Promise.reject(error);
+
+    switch (true) {
+      case error.response.status === 401:
+        setWithCredentialsStatusOrigin(false);
+        window.location.href = "/login";
+        break;
+      case error.response.status === 402:
+        if (!window.location.pathname.includes("payments")) {
+          window.location.href = "/payments";
+        }
+        break;
+      default:
+        break;
+    }
+
+    return Promise.reject(error);
+  }
+);
+
 export function setWithCredentialsStatus(state) {
   client.defaults.withCredentials = state;
+}
+
+export function setWithCredentialsStatusOrigin(state) {
+  clientOrigin.defaults.withCredentials = state;
 }
 
 export function setClientBasePath(path) {
@@ -90,5 +125,9 @@ export const request = function (options) {
     return Promise.reject(errorText || errorResponse);
   };
 
-  return client(options).then(onSuccess).catch(onError);
+  if (options.originURL) {
+    return clientOrigin(options).then(onSuccess).catch(onError);
+  } else {
+    return client(options).then(onSuccess).catch(onError);
+  }
 };
