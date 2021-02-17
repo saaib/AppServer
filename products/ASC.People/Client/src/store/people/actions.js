@@ -288,7 +288,27 @@ export function getOAuthToken() {
   });
 }
 
-export function resetFilter(withoutGroup = false) {  return (dispatch, getState) => {
+export function getSerializedProfile() {
+  return new Promise((resolve) => {
+    localStorage.removeItem("profile");
+    const interval = setInterval(() => {
+      try {
+        const profile = localStorage.getItem("profile");
+
+        if (profile) {
+          localStorage.removeItem("profile");
+          clearInterval(interval);
+          resolve(profile);
+        }
+      } catch {
+        return;
+      }
+    }, 500);
+  });
+}
+
+export function resetFilter(withoutGroup = false) {
+  return (dispatch, getState) => {
     const { people } = getState();
     const { filter } = people;
     let newFilter;

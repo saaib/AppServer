@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { connect } from "react-redux";
 import PropTypes from "prop-types";
-import { PageLayout, utils, store, Loaders } from "asc-web-common";
+import { PageLayout, utils, store, Loaders, api } from "asc-web-common";
 import {
   ArticleHeaderContent,
   ArticleMainButtonContent,
@@ -26,6 +26,14 @@ const i18n = createI18N({
 });
 const { changeLanguage } = utils;
 const { isAdmin } = store.auth.selectors;
+const { thirdPartyLinkAccount } = api.people;
+
+const loginCallback = (profile) => {
+  console.log(profile);
+  thirdPartyLinkAccount(profile.Serialized).then((resp) => {
+    console.log(resp);
+  });
+};
 
 class ProfileAction extends React.Component {
   componentDidMount() {
@@ -46,6 +54,8 @@ class ProfileAction extends React.Component {
         this.documentElement[i].style.transition = "none";
       }
     }
+
+    window.loginCallback = loginCallback;
   }
 
   componentDidUpdate(prevProps) {

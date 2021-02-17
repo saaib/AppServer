@@ -34,6 +34,7 @@ import {
   setIsEditingForm,
   toggleAvatarEditor,
   getOAuthToken,
+  getSerializedProfile,
 } from "../../../../../store/people/actions";
 import { getDisableProfileType } from "../../../../../store/profile/selectors";
 import {
@@ -58,7 +59,7 @@ import {
 } from "../../../../dialogs";
 import { isMobile } from "react-device-detect";
 const { createThumbnailsAvatar, loadAvatar, deleteAvatar } = api.people;
-const { getAuthProviders, linkProvider } = api.settings;
+const { getAuthProviders } = api.settings;
 const { isTablet } = utils.device;
 const { isAdmin } = store.auth.selectors;
 
@@ -593,9 +594,23 @@ class UpdateUserForm extends React.Component {
       );
 
       getOAuthToken().then((code) => {
-        const token = window.btoa(JSON.stringify({ auth: providerName }));
+        const token = window.btoa(
+          JSON.stringify({
+            auth: providerName,
+            mode: "popup",
+            callback: "loginCallback",
+          })
+        );
 
-        linkProvider(token, code);
+        window.open(
+          `/login.ashx?p=${token}&code=${code}`,
+          "login",
+          "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
+        );
+
+        getSerializedProfile().then((profile) => {
+          console.log(profile);
+        });
       });
     } catch (err) {
       console.log(err);

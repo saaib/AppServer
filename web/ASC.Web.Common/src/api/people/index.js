@@ -230,3 +230,11 @@ export function getSelectorUserList() {
     url: "/people/filter.json?fields=id,displayName,groups",
   });
 }
+
+export function thirdPartyLinkAccount(SerializedProfile) {
+  return request({
+    method: "put",
+    url: "people/thirdparty/linkaccount.json",
+    data: { SerializedProfile },
+  });
+}

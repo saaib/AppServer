@@ -191,13 +191,6 @@ export function getAuthProviders(
     url: `/settings/authproviders`,
   });
 }
-export function linkProvider(token, code) {
-  return request({
-    method: "get",
-    url: `/login.ashx?p=${token}&code=${code}`,
-    originURL: true,
-  });
-}
 export function updateConsumerProps(newProps) {
   const options = {
     method: "post",
