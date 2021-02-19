@@ -129,6 +129,56 @@ const LoginFormWrapper = styled.div`
   height: calc(100vh-56px);
 `;
 
+const authCallback = (profile) => {
+  debugger;
+  window.opener.test111 = "sdfsdfsdf";
+  if (profile.AuthorizationError && profile.AuthorizationError.length) {
+    if (profile.AuthorizationError != "Canceled at provider") {
+      console.log(profile.AuthorizationError);
+    }
+  } else {
+    window.submitForm("signInLogin", profile.Hash);
+  }
+};
+
+const getSerializedProfile = () => {
+  return new Promise((resolve) => {
+    localStorage.removeItem("profile");
+    const interval = setInterval(() => {
+      try {
+        const profile = localStorage.getItem("profile");
+
+        if (profile) {
+          localStorage.removeItem("profile");
+          clearInterval(interval);
+          resolve(profile);
+        }
+      } catch {
+        return;
+      }
+    }, 500);
+  });
+};
+
+const getOAuthToken = () => {
+  return new Promise((resolve) => {
+    localStorage.removeItem("code");
+    const interval = setInterval(() => {
+      try {
+        const code = localStorage.getItem("code");
+
+        if (code) {
+          localStorage.removeItem("code");
+          clearInterval(interval);
+          resolve(code);
+        }
+      } catch {
+        return;
+      }
+    }, 500);
+  });
+};
+
 class Form extends Component {
   constructor(props) {
     super(props);
@@ -257,6 +307,38 @@ class Form extends Component {
       });
   };
 
+  signInWithGoogle = () => {
+    try {
+      window.open(
+        "/login.ashx?auth=Google&mode=popup&callback=authCallback",
+        "login",
+        "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
+      );
+
+      getOAuthToken().then((code) => {
+        const token = window.btoa(
+          JSON.stringify({
+            auth: providerName,
+            mode: "popup",
+            callback: "authCallback",
+          })
+        );
+
+        window.open(
+          `/login.ashx?p=${token}&code=${code}`,
+          "login",
+          "width=800,height=500,status=no,toolbar=no,menubar=no,resizable=yes,scrollbars=no"
+        );
+
+        getSerializedProfile().then((profile) => {
+          console.log(profile);
+        });
+      });
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
   componentDidMount() {
     const {
       match,
@@ -276,6 +358,8 @@ class Form extends Component {
     if (!hashSettings) {
       reloadPortalSettings();
     }
+
+    window.authCallback = authCallback;
   }
 
   componentWillUnmount() {
@@ -448,7 +532,11 @@ class Form extends Component {
                   alignItems="center"
                   justify-content="center"
                 >
-                  <SocialButton iconName={"ShareGoogleIcon"} label={"Google"} />
+                  <SocialButton
+                    onClick={this.signInWithGoogle}
+                    iconName={"ShareGoogleIcon"}
+                    label={"Google"}
+                  />
                   <SocialButton iconName={"ShareFacebookIcon"} />
                   <SocialButton iconName={"ShareTwitterIcon"} />
                   <SocialButton iconName={"ShareLinkedInIcon"} />

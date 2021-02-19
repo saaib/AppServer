@@ -58,7 +58,12 @@ import {
   ChangePhoneDialog,
 } from "../../../../dialogs";
 import { isMobile } from "react-device-detect";
-const { createThumbnailsAvatar, loadAvatar, deleteAvatar } = api.people;
+const {
+  createThumbnailsAvatar,
+  loadAvatar,
+  deleteAvatar,
+  thirdPartyUnlinkAccount,
+} = api.people;
 const { getAuthProviders } = api.settings;
 const { isTablet } = utils.device;
 const { isAdmin } = store.auth.selectors;
@@ -583,6 +588,12 @@ class UpdateUserForm extends React.Component {
     this.linkAccount(providers.linkedIn, e);
   };
 
+  onClickUnlink = (e) => {
+    thirdPartyUnlinkAccount("Google").then(() => {
+      console.log("Unlink account");
+    });
+  };
+
   linkAccount = (providerName, e) => {
     const link = e.target.href;
 
@@ -928,6 +939,14 @@ class UpdateUserForm extends React.Component {
               href="/login.ashx?auth=Google&mode=popup&callback=loginCallback"
             >
               {t("Connect")}
+            </Link>
+            <Link
+              type="action"
+              color="A3A9AE"
+              onClick={this.onClickUnlink}
+              isHovered={true}
+            >
+              {t("Disconnect")}
             </Link>
             <div>
               <SocialButton
