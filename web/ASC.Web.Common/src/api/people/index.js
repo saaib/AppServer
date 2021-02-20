@@ -245,3 +245,11 @@ export function thirdPartyUnlinkAccount(provider) {
     url: `people/thirdparty/unlinkaccount.json?provider=${provider}`,
   });
 }
+
+export function thirdPartyLogin(SerializedProfile) {
+  return request({
+    method: "post",
+    url: "authentication.json",
+    data: { SerializedProfile },
+  });
+}

@@ -25,7 +25,10 @@ import {
   setIsLoaded,
   reloadPortalSettings,
 } from "../../store/auth/actions";
-import { sendInstructionsToChangePassword } from "../../api/people";
+import {
+  sendInstructionsToChangePassword,
+  thirdPartyLogin,
+} from "../../api/people";
 import Register from "./sub-components/register-container";
 import { createPasswordHash, tryRedirectTo } from "../../utils";
 import { isDesktopClient } from "../../store/auth/selectors";
@@ -128,17 +131,6 @@ const LoginFormWrapper = styled.div`
   width: 100%;
   height: calc(100vh-56px);
 `;
-
-const authCallback = (profile) => {
-  window.opener.test111 = "sdfsdfsdf";
-  if (profile.AuthorizationError && profile.AuthorizationError.length) {
-    if (profile.AuthorizationError != "Canceled at provider") {
-      console.log(profile.AuthorizationError);
-    }
-  } else {
-    window.submitForm("signInLogin", profile.Hash);
-  }
-};
 
 const getSerializedProfile = () => {
   return new Promise((resolve) => {
@@ -306,6 +298,15 @@ class Form extends Component {
       });
   };
 
+  authCallback = (profile) => {
+    thirdPartyLogin(profile.Serialized).then(() => {
+      const { defaultPage } = this.props;
+      if (!tryRedirectTo(defaultPage)) {
+        setIsLoaded(true);
+      }
+    });
+  };
+
   signInWithGoogle = () => {
     try {
       window.open(
@@ -358,7 +359,7 @@ class Form extends Component {
       reloadPortalSettings();
     }
 
-    window.authCallback = authCallback;
+    window.authCallback = this.authCallback;
   }
 
   componentWillUnmount() {
