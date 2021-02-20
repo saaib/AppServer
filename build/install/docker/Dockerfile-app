@@ -5,6 +5,7 @@ ARG RELEASE_DATE="2016-06-21"
 ARG VERSION="8.9.0.190"
 ARG DEBIAN_FRONTEND=noninteractive
 ARG GIT_BRANCH="master"
+ARG_VIRTUAL_DIR="/appserver"
 
 LABEL onlyoffice.appserver.release-date="${RELEASE_DATE}" \
       onlyoffice.appserver.version="${VERSION}" \

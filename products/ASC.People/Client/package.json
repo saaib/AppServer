@@ -2,7 +2,7 @@
   "name": "asc-people-client",
   "version": "0.0.10",
   "private": true,
-  "homepage": "/products/people",
+  "homepage": "${ARG_VIRTUAL_DIR}/products/people",
   "dependencies": {
     "asc-web-common": "file:../../../packages/asc-web-common",
     "asc-web-components": "file:../../../packages/asc-web-components",
