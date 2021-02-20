@@ -101,7 +101,7 @@ class App extends React.Component {
                   component={Login}
                 />
                 <Route path="/confirm" component={Confirm} />
-                <PrivateRoute
+                <Route
                   path={`/thirdparty/:provider`}
                   component={ThirdPartyResponse}
                 />

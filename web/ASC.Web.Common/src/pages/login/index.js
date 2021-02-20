@@ -130,7 +130,6 @@ const LoginFormWrapper = styled.div`
 `;
 
 const authCallback = (profile) => {
-  debugger;
   window.opener.test111 = "sdfsdfsdf";
   if (profile.AuthorizationError && profile.AuthorizationError.length) {
     if (profile.AuthorizationError != "Canceled at provider") {
@@ -318,7 +317,7 @@ class Form extends Component {
       getOAuthToken().then((code) => {
         const token = window.btoa(
           JSON.stringify({
-            auth: providerName,
+            auth: "Google",
             mode: "popup",
             callback: "authCallback",
           })
