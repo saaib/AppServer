@@ -1,46 +1,66 @@
-import { makeObservable, action, observable } from "mobx";
-import { api } from "asc-web-common";
+import { makeAutoObservable } from "mobx";
+import api from "@appserver/common/api";
 import axios from "axios";
-import ThirdPartyStore from "./ThirdPartyStore";
 
 class SettingsStore {
-  thirdPartyStore = null;
-  settingsTree = {};
+  thirdPartyStore;
 
-  constructor() {
-    makeObservable(this, {
-      thirdPartyStore: observable,
-      settingsTree: observable,
+  isErrorSettings = null;
+  expandedSetting = null;
 
-      getFilesSettings: action,
-      setExpandSettingsTree: action,
-    });
+  confirmDelete = null;
+  enableThirdParty = null;
+  forcesave = null;
+  storeForcesave = null;
+  storeOriginalFiles = null;
+  updateIfExist = null;
 
-    this.thirdPartyStore = new ThirdPartyStore();
+  settingsIsLoaded = false;
+
+  constructor(thirdPartyStore) {
+    makeAutoObservable(this);
+
+    this.thirdPartyStore = thirdPartyStore;
+  }
+
+  setIsLoaded = (isLoaded) => {
+    this.settingsIsLoaded = isLoaded;
+  };
+
+  get isLoadedSettingsTree() {
+    return (
+      this.confirmDelete !== null &&
+      this.enableThirdParty !== null &&
+      this.forcesave !== null &&
+      this.storeForcesave !== null &&
+      this.storeOriginalFiles !== null &&
+      this.updateIfExist !== null
+    );
   }
 
   setFilesSettings = (settings) => {
     const settingsItems = Object.keys(settings);
     for (let key of settingsItems) {
-      this.settingsTree[key] = settings[key];
+      this[key] = settings[key];
     }
   };
 
   setIsErrorSettings = (isError) => {
-    this.settingsTree.isErrorSettings = isError;
+    this.isErrorSettings = isError;
   };
 
   setExpandSettingsTree = (expandedSetting) => {
-    this.settingsTree.expandedSetting = expandedSetting;
+    this.expandedSetting = expandedSetting;
   };
 
   getFilesSettings = () => {
-    if (Object.keys(this.settingsTree).length === 0) {
+    if (!this.isLoadedSettingsTree) {
       return api.files
         .getSettingsFiles()
         .then((settings) => {
           this.setFilesSettings(settings);
           if (settings.enableThirdParty) {
+            this.setIsLoaded(true);
             return axios
               .all([
                 api.files.getThirdPartyCapabilities(),
@@ -50,19 +70,20 @@ class SettingsStore {
                 for (let item of capabilities) {
                   item.splice(1, 1);
                 }
-                //this.thirdPartyStore.setThirdPartyCapabilities(capabilities); //TODO: Out of bounds read: 1
+                this.thirdPartyStore.setThirdPartyCapabilities(capabilities); //TODO: Out of bounds read: 1
                 this.thirdPartyStore.setThirdPartyProviders(providers);
               });
           }
+          return this.setIsLoaded(true);
         })
         .catch(() => this.setIsErrorSettings(true));
     } else {
-      return Promise.resolve(this.settingsTree);
+      return Promise.resolve();
     }
   };
 
   setFilesSetting = (setting, val) => {
-    this.settingsTree[setting] = val;
+    this[setting] = val;
   };
 
   setUpdateIfExist = (data, setting) =>
@@ -94,4 +115,4 @@ class SettingsStore {
     api.files.forceSave(data).then((res) => this.setFilesSetting(setting, res));
 }
 
-export default new SettingsStore();
+export default SettingsStore;

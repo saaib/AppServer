@@ -1,15 +1,13 @@
 import React from "react";
 import { withRouter } from "react-router";
-import {
-  Button,
-  Heading,
-  Link,
-  Text,
-  Backdrop,
-  Aside,
-} from "asc-web-components";
+import Backdrop from "@appserver/components/backdrop";
+import Heading from "@appserver/components/heading";
+import Aside from "@appserver/components/aside";
+import Button from "@appserver/components/button";
+import Text from "@appserver/components/text";
+import Link from "@appserver/components/link";
 import { withTranslation } from "react-i18next";
-import { toastr } from "asc-web-common";
+import toastr from "studio/toastr";
 import OwnerSelector from "./OwnerSelector";
 import {
   StyledAsidePanel,
@@ -28,35 +26,12 @@ class ChangeOwnerComponent extends React.Component {
     this.state = { showPeopleSelector: false, owner };
   }
 
-  updateRowData = (newRowData) => {
-    const { files, folders, setFiles, setFolders } = this.props;
-
-    for (let item of newRowData) {
-      if (!item.fileExst && item.foldersCount) {
-        let folderIndex = folders.findIndex((x) => x.id === item.id);
-        if (folderIndex !== -1) {
-          folders[folderIndex] = item;
-        }
-      } else {
-        let fileIndex = files.findIndex((x) => x.id === item.id);
-        if (fileIndex !== -1) {
-          files[fileIndex] = item;
-        }
-      }
-    }
-
-    setFiles(files);
-    setFolders(folders);
-  };
-
   onOwnerChange = () => {
     const { owner } = this.state;
     const {
-      files,
-      folders,
       selection,
-      setFolders,
-      setFiles,
+      setFolder,
+      setFile,
       setIsLoading,
       setFilesOwner,
     } = this.props;
@@ -72,17 +47,9 @@ class ChangeOwnerComponent extends React.Component {
     setFilesOwner(folderIds, fileIds, ownerId)
       .then((res) => {
         if (isFolder) {
-          let folderIndex = folders.findIndex((x) => x.id === selectedItem.id);
-          if (folderIndex !== -1) {
-            folders[folderIndex] = res[0];
-          }
-          setFolders(folders);
+          setFolder(res[0]);
         } else {
-          let fileIndex = files.findIndex((x) => x.id === selectedItem.id);
-          if (fileIndex !== -1) {
-            files[fileIndex] = res[0];
-          }
-          setFiles(files);
+          setFile(res[0]);
         }
       })
       .catch((err) => toastr.error(err))
@@ -173,28 +140,25 @@ const ChangeOwnerPanel = withTranslation("ChangeOwnerPanel")(
   ChangeOwnerComponent
 );
 
-export default inject(({ auth, initFilesStore, filesStore, dialogsStore }) => {
-  const { setIsLoading, isLoading } = initFilesStore;
+export default inject(({ auth, filesStore, dialogsStore }) => {
   const {
-    files,
-    folders,
     selection,
-    setFiles,
-    setFolders,
+    setFile,
+    setFolder,
     setFilesOwner,
+    setIsLoading,
+    isLoading,
   } = filesStore;
   const { ownerPanelVisible, setChangeOwnerPanelVisible } = dialogsStore;
 
   return {
     groupsCaption: auth.settingsStore.customNames.groupsCaption,
-    files,
-    folders,
     selection,
     isLoading,
     visible: ownerPanelVisible,
 
-    setFiles,
-    setFolders,
+    setFile,
+    setFolder,
     setIsLoading,
     setChangeOwnerPanelVisible,
     setFilesOwner,

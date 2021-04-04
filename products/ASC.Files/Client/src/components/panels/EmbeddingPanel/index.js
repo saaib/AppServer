@@ -1,17 +1,15 @@
 import React from "react";
 import PropTypes from "prop-types";
-import {
-  Backdrop,
-  Heading,
-  Aside,
-  IconButton,
-  Text,
-  Link,
-  TextInput,
-  Textarea,
-} from "asc-web-components";
-import { toastr } from "asc-web-common";
-import { withTranslation } from "react-i18next";
+import Backdrop from "@appserver/components/backdrop";
+import Heading from "@appserver/components/heading";
+import Aside from "@appserver/components/aside";
+import IconButton from "@appserver/components/icon-button";
+import Text from "@appserver/components/text";
+import Link from "@appserver/components/link";
+import TextInput from "@appserver/components/text-input";
+import Textarea from "@appserver/components/textarea";
+import toastr from "studio/toastr";
+import { withTranslation, I18nextProvider } from "react-i18next";
 import {
   StyledEmbeddingPanel,
   StyledContent,
@@ -19,6 +17,7 @@ import {
   StyledBody,
 } from "../StyledPanels";
 import copy from "copy-to-clipboard";
+import i18n from "./i18n";
 
 class EmbeddingPanelComponent extends React.Component {
   constructor(props) {
@@ -130,7 +129,7 @@ class EmbeddingPanelComponent extends React.Component {
             <StyledHeaderContent>
               <IconButton
                 size="16"
-                iconName="ArrowPathIcon"
+                iconName="/static/images/arrow.path.react.svg"
                 onClick={this.onArrowClick}
                 color="#A3A9AE"
               />
@@ -196,7 +195,7 @@ class EmbeddingPanelComponent extends React.Component {
                   <IconButton
                     className="embedding-panel_copy-icon"
                     size="16"
-                    iconName="CopyIcon"
+                    iconName="/static/images/copy.react.svg"
                     color="#333"
                     onClick={this.onCopyLink}
                   />
@@ -217,4 +216,12 @@ EmbeddingPanelComponent.propTypes = {
   onClose: PropTypes.func,
 };
 
-export default withTranslation("EmbeddingPanel")(EmbeddingPanelComponent);
+const EmbeddingPanel = withTranslation("EmbeddingPanel")(
+  EmbeddingPanelComponent
+);
+
+export default (props) => (
+  <I18nextProvider i18n={i18n}>
+    <EmbeddingPanel {...props} />
+  </I18nextProvider>
+);

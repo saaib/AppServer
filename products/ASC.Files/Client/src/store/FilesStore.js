@@ -1,54 +1,39 @@
-import { makeObservable, action, observable, computed } from "mobx";
-import { api, constants, store, history } from "asc-web-common";
-import axios from "axios";
-import queryString from "query-string";
-import FileActionStore from "./FileActionStore";
-import selectedFolderStore from "./SelectedFolderStore";
-import formatsStore from "./FormatsStore";
-import treeFoldersStore from "./TreeFoldersStore";
-import { createTreeFolders } from "../helpers/files-helpers";
+import { makeAutoObservable } from "mobx";
+import api from "@appserver/common/api";
 import {
-  AUTHOR_TYPE,
-  FILTER_TYPE,
-  PAGE_COUNT,
-  PAGE,
-  SEARCH_TYPE,
-  SEARCH,
-  SORT_BY,
-  SORT_ORDER,
-  FOLDER,
-  PREVIEW,
-} from "../helpers/constants";
+  FolderType,
+  FilterType,
+  FileType,
+  FileAction,
+  AppServerConfig,
+} from "@appserver/common/constants";
+import history from "@appserver/common/history";
+import { createTreeFolders } from "../helpers/files-helpers";
 import config from "../../package.json";
+import { combineUrl } from "@appserver/common/utils";
+import { updateTempContent } from "@appserver/common/utils";
 
 const { FilesFilter } = api;
-const { FolderType, FilterType, FileType, FileAction } = constants;
-const { authStore } = store;
-const { settingsStore, userStore, isAdmin } = authStore;
-const { isEncryptionSupport, isDesktopClient } = settingsStore;
-
-const {
-  iconFormatsStore,
-  mediaViewersFormatsStore,
-  docserviceStore,
-} = formatsStore;
-const {
-  isSpreadsheet,
-  isPresentation,
-  getFileIcon,
-  getFolderIcon,
-} = iconFormatsStore;
-const { getIcon } = iconFormatsStore;
-const {
-  canWebEdit,
-  canWebComment,
-  canWebReview,
-  canFormFillingDocs,
-  canWebFilterEditing,
-} = docserviceStore;
 
 class FilesStore {
-  fileActionStore = null;
+  authStore;
+  settingsStore;
+  userStore;
+  fileActionStore;
+  selectedFolderStore;
+  treeFoldersStore;
+  formatsStore;
+
+  isLoaded = false;
+  isLoading = false;
+  viewAs = "row";
+  dragging = false;
+  privacyInstructions = "https://www.onlyoffice.com/private-rooms.aspx";
+  isInit = false;
+
+  tooltipPageX = 0;
+  tooltipPageY = 0;
+  startDrag = false;
 
   firstLoad = true;
   files = [];
@@ -58,61 +43,118 @@ class FilesStore {
   filter = FilesFilter.getDefault(); //TODO: FILTER
   newRowItems = [];
 
-  constructor() {
-    makeObservable(this, {
-      fileActionStore: observable,
+  constructor(
+    authStore,
+    settingsStore,
+    userStore,
+    fileActionStore,
+    selectedFolderStore,
+    treeFoldersStore,
+    formatsStore
+  ) {
+    const pathname = window.location.pathname.toLowerCase();
+    this.isEditor = pathname.indexOf("doceditor") !== -1;
 
-      firstLoad: observable,
-      files: observable,
-      folders: observable,
-      selected: observable,
-      filter: observable, //TODO: FILTER
-      selection: observable,
-      newRowItems: observable,
-
-      filesList: computed,
-      sortedFiles: computed,
-      canCreate: computed,
-      isHeaderVisible: computed,
-      isHeaderIndeterminate: computed,
-      isHeaderChecked: computed,
-      userAccess: computed,
-      isAccessedSelected: computed,
-      isOnlyFoldersSelected: computed,
-      isThirdPartySelection: computed,
-      isWebEditSelected: computed,
-      canShareOwnerChange: computed,
-      selectionTitle: computed,
-      currentFilesCount: computed,
-
-      setFirstLoad: action,
-      setFiles: action,
-      setFolders: action,
-      setSelected: action,
-      setFilesFilter: action, //TODO: FILTER
-      setSelection: action,
-      setNewRowItems: action,
-      setFilesOwner: action,
-      fetchFiles: action,
-      selectFile: action,
-      deselectFile: action,
-      addFileToRecentlyViewed: action,
-      createFile: action,
-      createFolder: action,
-      updateFile: action,
-      getAccessOption: action,
-      getExternalAccessOption: action,
-      setSelections: action,
-      getShareUsers: action,
-      setShareFiles: action,
-      markItemAsFavorite: action,
-      removeItemFromFavorite: action,
-      fetchFavoritesFolder: action,
-      getFileInfo: action,
-    });
-
-    this.fileActionStore = new FileActionStore();
+    makeAutoObservable(this);
+    this.authStore = authStore;
+    this.settingsStore = settingsStore;
+    this.userStore = userStore;
+    this.fileActionStore = fileActionStore;
+    this.selectedFolderStore = selectedFolderStore;
+    this.treeFoldersStore = treeFoldersStore;
+    this.formatsStore = formatsStore;
   }
+
+  setIsLoaded = (isLoaded) => {
+    this.isLoaded = isLoaded;
+  };
+
+  setViewAs = (viewAs) => {
+    this.viewAs = viewAs;
+  };
+
+  setDragging = (dragging) => {
+    this.dragging = dragging;
+  };
+
+  setIsLoading = (isLoading) => {
+    this.isLoading = isLoading;
+  };
+
+  setTooltipPosition = (tooltipPageX, tooltipPageY) => {
+    this.tooltipPageX = tooltipPageX;
+    this.tooltipPageY = tooltipPageY;
+  };
+
+  setStartDrag = (startDrag) => {
+    this.startDrag = startDrag;
+  };
+
+  get tooltipValue() {
+    if (!this.dragging) return null;
+
+    const selectionLength = this.selection.length;
+    const elementTitle = selectionLength && this.selection[0].title;
+    const singleElement = selectionLength === 1;
+    const filesCount = singleElement ? elementTitle : selectionLength;
+    const { isShareFolder, isCommonFolder } = this.treeFoldersStore;
+
+    let operationName;
+
+    if (this.authStore.isAdmin && isShareFolder) {
+      operationName = "copy";
+    } else if (!this.authStore.isAdmin && (isShareFolder || isCommonFolder)) {
+      operationName = "copy";
+    } else {
+      operationName = "move";
+    }
+
+    return operationName === "copy"
+      ? singleElement
+        ? { label: "TooltipElementCopyMessage", filesCount }
+        : { label: "TooltipElementsCopyMessage", filesCount }
+      : singleElement
+      ? { label: "TooltipElementMoveMessage", filesCount }
+      : { label: "TooltipElementsMoveMessage", filesCount };
+  }
+
+  initFiles = () => {
+    if (this.isInit) return;
+    this.isInit = true;
+
+    const { isAuthenticated } = this.authStore;
+    const {
+      getPortalCultures,
+      isDesktopClient,
+      getIsEncryptionSupport,
+      getEncryptionKeys,
+      setModuleInfo,
+    } = this.settingsStore;
+
+    setModuleInfo(config.homepage, config.id);
+
+    const requests = [];
+
+    updateTempContent();
+    if (!isAuthenticated) {
+      return this.setIsLoaded(true);
+    } else {
+      updateTempContent(isAuthenticated);
+    }
+
+    if (!this.isEditor) {
+      requests.push(
+        getPortalCultures(),
+        this.treeFoldersStore.fetchTreeFolders()
+      );
+
+      if (isDesktopClient) {
+        requests.push(getIsEncryptionSupport(), getEncryptionKeys());
+      }
+    }
+
+    return Promise.all(requests);
+  };
 
   setFirstLoad = (firstLoad) => {
     this.firstLoad = firstLoad;
@@ -124,6 +166,16 @@ class FilesStore {
 
   setFolders = (folders) => {
     this.folders = folders;
+  };
+
+  setFile = (file) => {
+    const index = this.files.findIndex((x) => x.id === file.id);
+    if (index !== -1) this.files[index] = file;
+  };
+
+  setFolder = (folder) => {
+    const index = this.folders.findIndex((x) => x.id === folder.id);
+    if (index !== -1) this.folders[index] = folder;
   };
 
   getFilesChecked = (file, selected) => {
@@ -192,50 +244,29 @@ class FilesStore {
   };
 
   setFilterUrl = (filter) => {
-    const defaultFilter = FilesFilter.getDefault();
-    const params = [];
-    const URLParams = queryString.parse(window.location.href);
-
-    if (filter.filterType) {
-      params.push(`${FILTER_TYPE}=${filter.filterType}`);
-    }
-
-    if (filter.withSubfolders === "false") {
-      params.push(`${SEARCH_TYPE}=${filter.withSubfolders}`);
-    }
-
-    if (filter.search) {
-      params.push(`${SEARCH}=${filter.search.trim()}`);
-    }
-    if (filter.authorType) {
-      params.push(`${AUTHOR_TYPE}=${filter.authorType}`);
-    }
-    if (filter.folder) {
-      params.push(`${FOLDER}=${filter.folder}`);
-    }
-
-    if (filter.pageCount !== defaultFilter.pageCount) {
-      params.push(`${PAGE_COUNT}=${filter.pageCount}`);
-    }
-
-    if (URLParams.preview) {
-      params.push(`${PREVIEW}=${URLParams.preview}`);
-    }
-
-    params.push(`${PAGE}=${filter.page + 1}`);
-    params.push(`${SORT_BY}=${filter.sortBy}`);
-    params.push(`${SORT_ORDER}=${filter.sortOrder}`);
-
-    history.push(`${config.homepage}/filter?${params.join("&")}`);
+    const urlFilter = filter.toUrlParams();
+    history.push(
+      combineUrl(
+        AppServerConfig.proxyURL,
+        config.homepage,
+        `/filter?${urlFilter}`
+      )
+    );
   };
 
   fetchFiles = (folderId, filter, clearFilter = true) => {
     const filterData = filter ? filter.clone() : FilesFilter.getDefault();
     filterData.folder = folderId;
-    const { privacyFolder, expandedKeys, setExpandedKeys } = treeFoldersStore;
+    const {
+      privacyFolder,
+      expandedKeys,
+      setExpandedKeys,
+      setSelectedNode,
+    } = this.treeFoldersStore;
+    setSelectedNode([folderId + ""]);
 
     if (privacyFolder && privacyFolder.id === +folderId) {
-      if (!isEncryptionSupport) {
+      if (!this.settingsStore.isEncryptionSupport) {
         const newExpandedKeys = createTreeFolders(
           privacyFolder.pathParts,
           expandedKeys
@@ -249,7 +280,7 @@ class FilesStore {
           this.fileActionStore.setAction({ type: null });
           this.setSelected("close");
 
-          selectedFolderStore.setSelectedFolder({
+          this.selectedFolderStore.setSelectedFolder({
             folders: [],
             ...privacyFolder,
             pathParts: privacyFolder.pathParts,
@@ -264,22 +295,26 @@ class FilesStore {
       const isPrivacyFolder =
         data.current.rootFolderType === FolderType.Privacy;
 
-      const newExpandedKeys = createTreeFolders(
-        data.pathParts,
-        treeFoldersStore.expandedKeys
-      );
-      treeFoldersStore.setExpandedKeys(newExpandedKeys);
+      const newExpandedKeys = createTreeFolders(data.pathParts, expandedKeys);
+      setExpandedKeys(newExpandedKeys);
       filterData.total = data.total;
       this.setFilesFilter(filterData); //TODO: FILTER
       this.setFolders(
-        isPrivacyFolder && !isEncryptionSupport ? [] : data.folders
+        isPrivacyFolder && !this.settingsStore.isEncryptionSupport
+          ? []
+          : data.folders
       );
-      this.setFiles(isPrivacyFolder && !isEncryptionSupport ? [] : data.files);
+      this.setFiles(
+        isPrivacyFolder && !this.settingsStore.isEncryptionSupport
+          ? []
+          : data.files
+      );
       if (clearFilter) {
+        this.fileActionStore.setAction({ type: null });
         this.setSelected("close");
       }
 
-      selectedFolderStore.setSelectedFolder({
+      this.selectedFolderStore.setSelectedFolder({
         folders: data.folders,
         ...data.current,
         pathParts: data.pathParts,
@@ -287,7 +322,7 @@ class FilesStore {
       });
 
       const selectedFolder = {
-        selectedFolder: { ...selectedFolderStore },
+        selectedFolder: { ...this.selectedFolderStore },
       };
       return Promise.resolve(selectedFolder);
     });
@@ -314,49 +349,24 @@ class FilesStore {
       this.selection = this.selection.filter((x) => x.id !== id);
   };
 
-  isCanShare = () => {
-    const folderType = selectedFolderStore.rootFolderType;
-    const isVisitor = (userStore.user && userStore.user.isVisitor) || false;
-
-    if (isVisitor) {
-      return false;
-    }
-
-    switch (folderType) {
-      case FolderType.USER:
-        return true;
-      case FolderType.SHARE:
-        return false;
-      case FolderType.COMMON:
-        return isAdmin;
-      case FolderType.TRASH:
-        return false;
-      case FolderType.Favorites:
-        return false;
-      case FolderType.Recent:
-        return false;
-      case FolderType.Privacy:
-        return true;
-      default:
-        return false;
-    }
-  };
-
-  getFilesContextOptions = (item, canOpenPlayer, canShare) => {
+  getFilesContextOptions = (item, canOpenPlayer) => {
     const options = [];
-    const isVisitor = (userStore.user && userStore.user.isVisitor) || false;
+    const isVisitor =
+      (this.userStore.user && this.userStore.user.isVisitor) || false;
 
     const isFile = !!item.fileExst;
     const isFavorite = item.fileStatus === 32;
     const isFullAccess = item.access < 2;
     const isThirdPartyFolder =
-      item.providerKey && selectedFolderStore.isRootFolder;
+      item.providerKey && this.selectedFolderStore.isRootFolder;
 
     if (item.id <= 0) return [];
 
-    const isRecycleBinFolder = treeFoldersStore.isRecycleBinFolder;
-    const isPrivacyFolder = treeFoldersStore.isPrivacyFolder;
-    const isRecentFolder = treeFoldersStore.isRecentFolder;
+    const {
+      isRecycleBinFolder,
+      isPrivacyFolder,
+      isRecentFolder,
+    } = this.treeFoldersStore;
 
     if (isRecycleBinFolder) {
       options.push("download");
@@ -384,7 +394,8 @@ class FilesStore {
 
       //TODO: use canShare selector
       if (
-        /*!(isRecentFolder || isFavoritesFolder || isVisitor) && */ canShare
+        /*!(isRecentFolder || isFavoritesFolder || isVisitor) && */ this
+          .canShare
       ) {
         options.push("sharing-settings");
       }
@@ -393,7 +404,7 @@ class FilesStore {
         options.push("send-by-email");
       }
 
-      this.canShareOwnerChange && options.push("owner-change");
+      this.canShareOwnerChange(item) && options.push("owner-change");
       options.push("link-for-portal-users");
 
       if (!isVisitor) {
@@ -455,8 +466,8 @@ class FilesStore {
     return options;
   };
 
-  addFileToRecentlyViewed = (fileId, isPrivacy) => {
-    if (isPrivacy) return Promise.resolve();
+  addFileToRecentlyViewed = (fileId) => {
+    if (this.treeFoldersStore.isPrivacyFolder) return Promise.resolve();
     return api.files.addFileToRecentlyViewed(fileId);
   };
 
@@ -470,13 +481,11 @@ class FilesStore {
     return api.files.createFolder(parentFolderId, title);
   }
 
-  //TODO: action?
   setFile = (file) => {
     const fileIndex = this.files.findIndex((f) => f.id === file.id);
     if (fileIndex !== -1) this.files[fileIndex] = file;
   };
 
-  //TODO: action?
   setFolder = (folder) => {
     const folderIndex = this.folders.findIndex((f) => f.id === folder.id);
     if (folderIndex !== -1) this.folders[folderIndex] = folder;
@@ -495,7 +504,7 @@ class FilesStore {
   };
 
   getFilesCount = () => {
-    const { filesCount, foldersCount } = selectedFolderStore;
+    const { filesCount, foldersCount } = this.selectedFolderStore;
     return filesCount + this.folders ? this.folders.length : foldersCount;
   };
 
@@ -505,13 +514,65 @@ class FilesStore {
     return filesLength + foldersLength;
   };
 
+  canShareOwnerChange = (item) => {
+    const userId = this.userStore.user.id;
+    const isCommonFolder =
+      this.treeFoldersStore.commonFolder &&
+      this.selectedFolderStore.pathParts &&
+      this.treeFoldersStore.commonFolder.id ===
+        this.selectedFolderStore.pathParts[0];
+
+    if (item.providerKey || !isCommonFolder) {
+      return false;
+    } else if (this.authStore.isAdmin) {
+      return true;
+    } else if (item.createdBy.id === userId) {
+      return true;
+    } else {
+      return false;
+    }
+  };
+
+  get canShare() {
+    const folderType = this.selectedFolderStore.rootFolderType;
+    const isVisitor =
+      (this.userStore.user && this.userStore.user.isVisitor) || false;
+
+    if (isVisitor) {
+      return false;
+    }
+
+    switch (folderType) {
+      case FolderType.USER:
+        return true;
+      case FolderType.SHARE:
+        return false;
+      case FolderType.COMMON:
+        return this.authStore.isAdmin;
+      case FolderType.TRASH:
+        return false;
+      case FolderType.Favorites:
+        return false;
+      case FolderType.Recent:
+        return false;
+      case FolderType.Privacy:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   get currentFilesCount() {
     const serviceFilesCount = this.getServiceFilesCount();
     const filesCount = this.getFilesCount();
-    return selectedFolderStore.providerItem ? serviceFilesCount : filesCount;
+    return this.selectedFolderStore.providerItem
+      ? serviceFilesCount
+      : filesCount;
   }
 
   get iconOfDraggedFile() {
+    const { getIcon } = this.formatsStore.iconFormatsStore;
+
     if (this.selection.length === 1) {
       const icon = getIcon(
         24,
@@ -522,21 +583,6 @@ class FilesStore {
       return icon;
     }
     return null;
-  }
-
-  get canShareOwnerChange() {
-    const pathParts = selectedFolderStore.pathParts;
-    const userId = userStore.user.id;
-    const commonFolder = treeFoldersStore.commonFolder;
-    return (
-      (isAdmin ||
-        (this.selection.length && this.selection[0].createdBy.id === userId)) &&
-      pathParts &&
-      commonFolder &&
-      commonFolder.id === pathParts[0] &&
-      this.selection.length &&
-      !this.selection[0].providerKey
-    );
   }
 
   get isHeaderVisible() {
@@ -556,16 +602,21 @@ class FilesStore {
   }
 
   get canCreate() {
-    switch (selectedFolderStore.rootFolderType) {
+    switch (this.selectedFolderStore.rootFolderType) {
       case FolderType.USER:
         return true;
       case FolderType.SHARE:
-        const canCreateInSharedFolder = selectedFolderStore.access === 1;
-        return !selectedFolderStore.isRootFolder && canCreateInSharedFolder;
+        const canCreateInSharedFolder = this.selectedFolderStore.access === 1;
+        return (
+          !this.selectedFolderStore.isRootFolder && canCreateInSharedFolder
+        );
       case FolderType.Privacy:
-        return isDesktopClient && isEncryptionSupport;
+        return (
+          this.settingsStore.isDesktopClient &&
+          this.settingsStore.isEncryptionSupport
+        );
       case FolderType.COMMON:
-        return isAdmin;
+        return this.authStore.isAdmin;
       case FolderType.TRASH:
       default:
         return false;
@@ -573,6 +624,8 @@ class FilesStore {
   }
 
   onCreateAddTempItem = (items) => {
+    const { getFileIcon, getFolderIcon } = this.formatsStore.iconFormatsStore;
+
     if (items.length && items[0].id === -1) return; //TODO: if change media collection from state remove this;
     const icon = this.fileActionStore.extension
       ? getFileIcon(`.${this.fileActionStore.extension}`, 24)
@@ -581,22 +634,18 @@ class FilesStore {
     items.unshift({
       id: -1,
       title: "",
-      parentId: selectedFolderStore.id,
+      parentId: this.selectedFolderStore.id,
       fileExst: this.fileActionStore.extension,
       icon,
     });
   };
 
   get filesList() {
-    const items =
-      this.folders && this.files
-        ? [...this.folders, ...this.files]
-        : this.folders
-        ? this.folders
-        : this.files
-        ? this.files
-        : [];
+    const { mediaViewersFormatsStore, iconFormatsStore } = this.formatsStore;
+    const { getIcon } = iconFormatsStore;
+    //return [...this.folders, ...this.files];
 
+    const items = [...this.folders, ...this.files];
     const newItem = items.map((item) => {
       const {
         access,
@@ -630,36 +679,14 @@ class FilesStore {
         item.fileExst
       );
 
-      const canShare = this.isCanShare();
+      const contextOptions = this.getFilesContextOptions(item, canOpenPlayer);
 
-      const contextOptions = this.getFilesContextOptions(
-        item,
-        canOpenPlayer,
-        canShare
-      );
-      const checked = this.isFileSelected(this.selection, id, parentId);
-
-      const selectedItem = this.selection.find(
-        (x) => x.id === id && x.fileExst === fileExst
-      );
-
-      const isFolder = selectedItem ? false : fileExst ? false : true;
-      const isRecycleBinFolder = treeFoldersStore.isRecycleBinFolder;
-
-      const draggable =
-        selectedItem &&
-        isRecycleBinFolder &&
-        selectedItem.id !== this.fileActionStore.id;
-
-      let value = fileExst ? `file_${id}` : `folder_${id}`;
-      value += draggable ? "_draggable" : "";
-
-      const isCanWebEdit = canWebEdit(item.fileExst);
+      //const isCanWebEdit = canWebEdit(item.fileExst);
       const icon = getIcon(24, fileExst, providerKey);
 
       return {
         access,
-        checked,
+        //checked,
         comment,
         contentLength,
         contextOptions,
@@ -673,27 +700,25 @@ class FilesStore {
         foldersCount,
         icon,
         id,
-        isFolder,
+        //isFolder,
         locked,
         new: item.new,
         parentId,
         pureContentLength,
         rootFolderType,
-        selectedItem,
+        //selectedItem,
         shared,
         title,
         updated,
         updatedBy,
-        value,
         version,
         versionGroup,
         viewUrl,
         webUrl,
         providerKey,
-        draggable,
         canOpenPlayer,
-        canWebEdit: isCanWebEdit,
-        canShare,
+        //canWebEdit: isCanWebEdit,
+        //canShare,
       };
     });
 
@@ -705,6 +730,12 @@ class FilesStore {
   }
 
   get sortedFiles() {
+    const {
+      isSpreadsheet,
+      isPresentation,
+    } = this.formatsStore.iconFormatsStore;
+    const { canWebEdit } = this.formatsStore.docserviceStore;
+
     const formatKeys = Object.freeze({
       OriginalFormat: 0,
     });
@@ -739,14 +770,14 @@ class FilesStore {
   }
 
   get userAccess() {
-    switch (selectedFolderStore.rootFolderType) {
+    switch (this.selectedFolderStore.rootFolderType) {
       case FolderType.USER:
         return true;
       case FolderType.SHARE:
         return false;
       case FolderType.COMMON:
         return (
-          isAdmin ||
+          this.authStore.isAdmin ||
           this.selection.some((x) => x.access === 0 || x.access === 1)
         );
       case FolderType.Privacy:
@@ -760,27 +791,27 @@ class FilesStore {
 
   get isAccessedSelected() {
     return (
-      this.selection.length &&
-      isAdmin &&
-      this.selection.every((x) => x.access === 1 || x.access === 0)
+      (this.selection.length &&
+        this.selection.every((x) => x.access === 1 || x.access === 0)) ||
+      (this.authStore.isAdmin && this.selection.length)
     );
   }
 
   get isOnlyFoldersSelected() {
-    return this.selection.every((selected) => selected.isFolder === true);
+    return this.selection.every((selected) => selected.fileExst === undefined);
   }
 
   get isThirdPartySelection() {
     const withProvider = this.selection.find((x) => !x.providerKey);
-    return !withProvider && selectedFolderStore.isRootFolder;
+    return !withProvider && this.selectedFolderStore.isRootFolder;
   }
 
   get isWebEditSelected() {
+    const { editedDocs } = this.formatsStore.docserviceStore;
+
     return this.selection.some((selected) => {
       if (selected.isFolder === true || !selected.fileExst) return false;
-      return docserviceStore.editedDocs.find(
-        (format) => selected.fileExst === format
-      );
+      return editedDocs.find((format) => selected.fileExst === format);
     });
   }
 
@@ -790,24 +821,37 @@ class FilesStore {
   }
 
   getOptions = (selection, externalAccess = false) => {
-    const webEdit = selection.find((x) => canWebEdit(x.fileExst));
-    const webComment = selection.find((x) => canWebComment(x.fileExst));
-    const webReview = selection.find((x) => canWebReview(x.fileExst));
-    const formFillingDocs = selection.find((x) =>
-      canFormFillingDocs(x.fileExst)
-    );
-    const webFilter = selection.find((x) => canWebFilterEditing(x.fileExst));
+    const {
+      canWebEdit,
+      canWebComment,
+      canWebReview,
+      canFormFillingDocs,
+      canWebFilterEditing,
+    } = this.formatsStore.docserviceStore;
 
     let AccessOptions = [];
 
-    if (webEdit || !externalAccess) AccessOptions.push("FullAccess");
-
     AccessOptions.push("ReadOnly", "DenyAccess");
+
+    const webEdit = selection.find((x) => canWebEdit(x.fileExst));
+
+    const webComment = selection.find((x) => canWebComment(x.fileExst));
+
+    const webReview = selection.find((x) => canWebReview(x.fileExst));
+
+    const formFillingDocs = selection.find((x) =>
+      canFormFillingDocs(x.fileExst)
+    );
+
+    const webFilter = selection.find((x) => canWebFilterEditing(x.fileExst));
+
+    if (webEdit || !externalAccess) AccessOptions.push("FullAccess");
 
     if (webComment) AccessOptions.push("Comment");
     if (webReview) AccessOptions.push("Review");
     if (formFillingDocs) AccessOptions.push("FormFilling");
     if (webFilter) AccessOptions.push("FilterEditing");
+
     return AccessOptions;
   };
 
@@ -831,6 +875,7 @@ class FilesStore {
   };
 
   setSelections = (items) => {
+    if (!items.length) return;
     if (this.selection.length > items.length) {
       //Delete selection
       const newSelection = [];
@@ -976,7 +1021,7 @@ class FilesStore {
       ...externalAccessRequest,
     ];
 
-    return axios.all(requests);
+    return Promise.all(requests);
   };
 
   markItemAsFavorite = (id) => api.files.markAsFavorite(id);
@@ -988,7 +1033,7 @@ class FilesStore {
     this.setFolders(favoritesFolder.folders);
     this.setFiles(favoritesFolder.files);
 
-    selectedFolderStore.setSelectedFolder({
+    this.selectedFolderStore.setSelectedFolder({
       folders: favoritesFolder.folders,
       ...favoritesFolder.current,
       pathParts: favoritesFolder.pathParts,
@@ -999,6 +1044,37 @@ class FilesStore {
     const fileInfo = await api.files.getFileInfo(id);
     this.setFile(fileInfo);
   };
+
+  openDocEditor = (id, providerKey = null, tab = null, url = null) => {
+    if (providerKey) {
+      tab
+        ? (tab.location = url)
+        : window.open(
+            combineUrl(
+              AppServerConfig.proxyURL,
+              config.homepage,
+              `/doceditor?fileId=${id}`
+            ),
+            "_blank"
+          );
+    } else {
+      return this.addFileToRecentlyViewed(id)
+        .then(() => console.log("Pushed to recently viewed"))
+        .catch((e) => console.error(e))
+        .finally(
+          tab
+            ? (tab.location = url)
+            : window.open(
+                combineUrl(
+                  AppServerConfig.proxyURL,
+                  config.homepage,
+                  `/doceditor?fileId=${id}`
+                ),
+                "_blank"
+              )
+        );
+    }
+  };
 }
 
-export default new FilesStore();
+export default FilesStore;

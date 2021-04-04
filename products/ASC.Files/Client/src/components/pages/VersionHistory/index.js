@@ -1,7 +1,8 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { withRouter } from "react-router";
-import { PageLayout, Loaders } from "asc-web-common";
+import PageLayout from "@appserver/common/components/PageLayout";
+import Loaders from "@appserver/common/components/Loaders";
 import { withTranslation } from "react-i18next";
 import {
   ArticleHeaderContent,
@@ -35,8 +36,8 @@ class PureVersionHistory extends React.Component {
   };
 
   redirectToHomepage = () => {
-    const { setFilesFilter, filter } = this.props;
-    setFilesFilter(filter);
+    const { history } = this.props;
+    history.goBack();
   };
 
   render() {
@@ -85,26 +86,17 @@ VersionHistory.propTypes = {
   history: PropTypes.object.isRequired,
 };
 
-export default inject(
-  ({ auth, initFilesStore, filesStore, versionHistoryStore }) => {
-    const { isLoading } = initFilesStore;
-    const { filter, setFilesFilter } = filesStore;
+export default inject(({ auth, filesStore, versionHistoryStore }) => {
+  const { filter, setFilesFilter, isLoading } = filesStore;
+  const { setIsVerHistoryPanel, versions } = versionHistoryStore;
 
-    const {
-      setIsVerHistoryPanel,
-      setVerHistoryFileId,
-      versions,
-    } = versionHistoryStore;
+  return {
+    isTabletView: auth.settingsStore.isTabletView,
+    isLoading,
+    filter,
+    versions,
 
-    return {
-      isTabletView: auth.settingsStore.isTabletView,
-      isLoading,
-      filter,
-      versions,
-
-      setFilesFilter,
-      setIsVerHistoryPanel,
-      setVerHistoryFileId,
-    };
-  }
-)(withRouter(observer(VersionHistory)));
+    setFilesFilter,
+    setIsVerHistoryPanel,
+  };
+})(withRouter(observer(VersionHistory)));

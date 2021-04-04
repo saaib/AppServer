@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo } from "react";
 import { isMobile } from "react-device-detect";
-import { Paging } from "asc-web-components";
+import Paging from "@appserver/components/paging";
 import { useTranslation } from "react-i18next";
 import { inject, observer } from "mobx-react";
 
@@ -162,9 +162,8 @@ const SectionPagingContent = ({
   );
 };
 
-export default inject(({ initFilesStore, filesStore, selectedFolderStore }) => {
-  const { setIsLoading } = initFilesStore;
-  const { files, folders, fetchFiles, filter } = filesStore;
+export default inject(({ filesStore, selectedFolderStore }) => {
+  const { files, folders, fetchFiles, filter, setIsLoading } = filesStore;
 
   return {
     files,

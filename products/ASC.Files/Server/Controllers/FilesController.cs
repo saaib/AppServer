@@ -208,7 +208,8 @@ namespace ASC.Api.Documents
                 result.Add(GlobalFolderHelper.FolderTemplates);
             }
 
-            if (!withoutTrash)
+            if (!IsVisitor
+               && !withoutTrash)
             {
                 result.Add((int)GlobalFolderHelper.FolderTrash);
             }
@@ -592,13 +593,15 @@ namespace ASC.Api.Documents
         [Update("file/{fileId}/saveediting", DisableFormat = true)]
         public FileWrapper<string> SaveEditingFromForm(string fileId, [FromForm]SaveEditingModel model)
         {
-            return FilesControllerHelperString.SaveEditing(fileId, model.FileExtension, model.DownloadUri, model.Stream, model.Doc, model.Forcesave);
+            using var stream = model.Stream.OpenReadStream();
+            return FilesControllerHelperString.SaveEditing(fileId, model.FileExtension, model.DownloadUri, stream, model.Doc, model.Forcesave);
         }
 
         [Update("file/{fileId:int}/saveediting")]
         public FileWrapper<int> SaveEditingFromForm(int fileId, [FromForm]SaveEditingModel model)
         {
-            return FilesControllerHelperInt.SaveEditing(fileId, model.FileExtension, model.DownloadUri, model.Stream, model.Doc, model.Forcesave);
+            using var stream = model.Stream.OpenReadStream();
+            return FilesControllerHelperInt.SaveEditing(fileId, model.FileExtension, model.DownloadUri, stream, model.Doc, model.Forcesave);
         }
 
         /// <summary>
@@ -959,14 +962,14 @@ namespace ASC.Api.Documents
         [Create("@my/file")]
         public FileWrapper<int> CreateFileFromBody([FromBody]CreateFileModel<int> model)
         {
-            return FilesControllerHelperInt.CreateFile(GlobalFolderHelper.FolderMy, model.Title, model.TemplateId);
+            return FilesControllerHelperInt.CreateFile(GlobalFolderHelper.FolderMy, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         [Create("@my/file")]
         [Consumes("application/x-www-form-urlencoded")]
         public FileWrapper<int> CreateFileFromForm([FromForm]CreateFileModel<int> model)
         {
-            return FilesControllerHelperInt.CreateFile(GlobalFolderHelper.FolderMy, model.Title, model.TemplateId);
+            return FilesControllerHelperInt.CreateFile(GlobalFolderHelper.FolderMy, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         /// <summary>
@@ -981,27 +984,27 @@ namespace ASC.Api.Documents
         [Create("{folderId}/file", DisableFormat = true)]
         public FileWrapper<string> CreateFileFromBody(string folderId, [FromBody]CreateFileModel<string> model)
         {
-            return FilesControllerHelperString.CreateFile(folderId, model.Title, model.TemplateId);
+            return FilesControllerHelperString.CreateFile(folderId, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         [Create("{folderId}/file", DisableFormat = true)]
         [Consumes("application/x-www-form-urlencoded")]
         public FileWrapper<string> CreateFileFromForm(string folderId, [FromForm]CreateFileModel<string> model)
         {
-            return FilesControllerHelperString.CreateFile(folderId, model.Title, model.TemplateId);
+            return FilesControllerHelperString.CreateFile(folderId, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         [Create("{folderId:int}/file")]
         public FileWrapper<int> CreateFileFromBody(int folderId, [FromBody]CreateFileModel<int> model)
         {
-            return FilesControllerHelperInt.CreateFile(folderId, model.Title, model.TemplateId);
+            return FilesControllerHelperInt.CreateFile(folderId, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         [Create("{folderId:int}/file")]
         [Consumes("application/x-www-form-urlencoded")]
         public FileWrapper<int> CreateFileFromForm(int folderId, [FromForm]CreateFileModel<int> model)
         {
-            return FilesControllerHelperInt.CreateFile(folderId, model.Title, model.TemplateId);
+            return FilesControllerHelperInt.CreateFile(folderId, model.Title, model.TemplateId, model.EnableExternalExt);
         }
 
         /// <summary>

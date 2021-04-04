@@ -1,8 +1,14 @@
 import React from "react";
-import PropTypes from "prop-types";
+//import PropTypes from "prop-types";
 import { withRouter } from "react-router";
 import { isMobile } from "react-device-detect";
-import { PageLayout, utils, api, toastr } from "asc-web-common";
+import axios from "axios";
+import toastr from "studio/toastr";
+import PageLayout from "@appserver/common/components/PageLayout";
+import { showLoader, hideLoader } from "@appserver/common/utils";
+import FilesFilter from "@appserver/common/api/files/filter";
+import { getGroup } from "@appserver/common/api/groups";
+import { getUserById } from "@appserver/common/api/people";
 import { withTranslation, Trans } from "react-i18next";
 import {
   ArticleBodyContent,
@@ -17,12 +23,10 @@ import {
 } from "./Section";
 
 import { ConvertDialog } from "../../dialogs";
-import { ChangeOwnerPanel } from "../../panels";
-import { getFilterByLocation } from "../../../helpers/converters";
-import Panels from "./Panels";
+import MediaViewer from "./MediaViewer";
+import DragTooltip from "../../DragTooltip";
 import { observer, inject } from "mobx-react";
-
-const { FilesFilter } = api;
+import config from "../../../../package.json";
 
 class PureHome extends React.Component {
   componentDidMount() {
@@ -33,7 +37,7 @@ class PureHome extends React.Component {
     let filterObj = null;
 
     if (match && match.length > 0) {
-      filterObj = getFilterByLocation(window.location);
+      filterObj = FilesFilter.getFilter(window.location);
 
       if (!filterObj) {
         filterObj = FilesFilter.getDefault();
@@ -77,14 +81,15 @@ class PureHome extends React.Component {
     const requests = [Promise.resolve(newFilter)];
 
     if (type === "group") {
-      requests.push(api.groups.getGroup(itemId));
+      requests.push(getGroup(itemId));
     } else if (type === "user") {
-      requests.push(api.people.getUserById(itemId));
+      requests.push(getUserById(itemId));
     }
 
     setIsLoading(true);
 
-    Promise.all(requests)
+    axios
+      .all(requests)
       .catch((err) => {
         Promise.resolve(FilesFilter.getDefault());
         console.warn("Filter restored by default", err);
@@ -176,9 +181,9 @@ class PureHome extends React.Component {
     } = this.props;
     if (isLoading !== prevProps.isLoading) {
       if (isLoading) {
-        utils.showLoader();
+        showLoader();
       } else {
-        utils.hideLoader();
+        hideLoader();
       }
     }
     if (this.props.isHeaderVisible !== prevProps.isHeaderVisible) {
@@ -204,7 +209,6 @@ class PureHome extends React.Component {
       fileActionId,
       firstLoad,
       isHeaderVisible,
-      showOwnerChangePanel,
 
       primaryProgressDataVisible,
       primaryProgressDataPercent,
@@ -215,6 +219,8 @@ class PureHome extends React.Component {
       secondaryProgressDataStorePercent,
       secondaryProgressDataStoreIcon,
       secondaryProgressDataStoreAlert,
+
+      isLoading,
     } = this.props;
 
     return (
@@ -223,9 +229,8 @@ class PureHome extends React.Component {
           <ConvertDialog visible={convertDialogVisible} />
         )}
 
-        {showOwnerChangePanel && <ChangeOwnerPanel />}
-
-        <Panels />
+        <MediaViewer />
+        <DragTooltip />
         <PageLayout
           withBodyScroll
           withBodyAutoFocus={!isMobile}
@@ -250,6 +255,7 @@ class PureHome extends React.Component {
           isLoaded={!firstLoad}
           isHeaderVisible={isHeaderVisible}
           onOpenUploadPanel={this.showUploadPanel}
+          isLoading={isLoading}
         >
           <PageLayout.ArticleHeader>
             <ArticleHeaderContent />
@@ -271,11 +277,7 @@ class PureHome extends React.Component {
           </PageLayout.SectionFilter>
 
           <PageLayout.SectionBody>
-            <SectionBodyContent
-              isMobile={isMobile}
-              onChange={this.onRowChange}
-              onDropZoneUpload={this.onDrop}
-            />
+            <SectionBodyContent />
           </PageLayout.SectionBody>
 
           <PageLayout.SectionPaging>
@@ -289,26 +291,14 @@ class PureHome extends React.Component {
 
 const Home = withTranslation("Home")(PureHome);
 
-Home.propTypes = {
-  history: PropTypes.object.isRequired,
-};
-
 export default inject(
   ({
     auth,
-    initFilesStore,
     filesStore,
     uploadDataStore,
     dialogsStore,
     selectedFolderStore,
   }) => {
-    const {
-      dragging,
-      setDragging,
-      setIsLoading,
-      isLoading,
-      viewAs,
-    } = initFilesStore;
     const {
       secondaryProgressDataStore,
       primaryProgressDataStore,
@@ -320,8 +310,12 @@ export default inject(
       filter,
       fileActionStore,
       selection,
-
       setSelections,
+      dragging,
+      setDragging,
+      setIsLoading,
+      isLoading,
+      viewAs,
     } = filesStore;
 
     const { id } = fileActionStore;
@@ -341,10 +335,7 @@ export default inject(
       isSecondaryProgressFinished: isProgressFinished,
     } = secondaryProgressDataStore;
 
-    const {
-      convertDialogVisible,
-      ownerPanelVisible: showOwnerChangePanel,
-    } = dialogsStore;
+    const { convertDialogVisible } = dialogsStore;
 
     const { setUploadPanelVisible, startUpload } = uploadDataStore;
 
@@ -354,7 +345,7 @@ export default inject(
       : null;
 
     return {
-      homepage: auth.settingsStore.homepage,
+      homepage: config.homepage,
       firstLoad,
       dragging,
       fileActionId: id,
@@ -374,7 +365,6 @@ export default inject(
       secondaryProgressDataStoreAlert,
 
       convertDialogVisible,
-      showOwnerChangePanel,
       selectionLength,
       isProgressFinished,
       selectionTitle,

@@ -1,5 +1,5 @@
 import styled, { css } from "styled-components";
-import { Scrollbar } from "asc-web-components";
+import Scrollbar from "@appserver/components/scrollbar";
 
 const PanelStyles = css`
   .panel_combo-box {
@@ -183,9 +183,26 @@ const StyledContent = styled.div`
   }
 
   .sharing-access-combo-box-icon {
+    height: 16px;
     path {
       fill: ${(props) => (props.isDisabled ? "#D0D5DA" : "#A3A9AE")};
     }
+
+    svg {
+      width: 16px;
+      min-width: 16px;
+      height: 16px;
+      min-height: 16px;
+    }
+  }
+
+  .sharing-panel-loader-wrapper {
+    margin-top: 8px;
+    padding-left: 32px;
+  }
+  .sharing-panel-loader {
+    display: inline;
+    margin-right: 10px;
   }
 `;
 
@@ -336,6 +353,7 @@ const StyledSharingBody = styled(Scrollbar)`
   padding: 16px 0;
   .row_content {
     overflow: visible;
+    height: auto;
   }
 
   .sharing-row {

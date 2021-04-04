@@ -1,50 +1,23 @@
-import { makeObservable, observable, computed, action } from "mobx";
-import { api, constants } from "asc-web-common";
-import selectedFolderStore from "./SelectedFolderStore";
+import { makeAutoObservable } from "mobx";
+import { getFoldersTree } from "@appserver/common/api/files";
+import { FolderType } from "@appserver/common/constants";
 
-const { FolderType } = constants;
 class TreeFoldersStore {
+  selectedFolderStore;
+
   treeFolders = [];
   selectedTreeNode = [];
   expandedKeys = [];
 
-  constructor() {
-    makeObservable(this, {
-      treeFolders: observable,
-      selectedTreeNode: observable,
-      expandedKeys: observable,
-
-      myFolderId: computed,
-      //shareFolderId: computed,
-      //favoritesFolderId: computed,
-      //recentFolderId: computed,
-      commonFolderId: computed,
-
-      myFolder: computed,
-      shareFolder: computed,
-      favoritesFolder: computed,
-      recentFolder: computed,
-      privacyFolder: computed,
-      commonFolder: computed,
-      recycleBinFolder: computed,
-
-      isMyFolder: computed,
-      isShareFolder: computed,
-      isFavoritesFolder: computed,
-      isRecentFolder: computed,
-      isPrivacyFolder: computed,
-      isCommonFolder: computed,
-      isRecycleBinFolder: computed,
-
-      fetchTreeFolders: action,
-      setTreeFolders: action,
-      setExpandedKeys: action,
-    });
+  constructor(selectedFolderStore) {
+    makeAutoObservable(this);
+    this.selectedFolderStore = selectedFolderStore;
   }
 
   fetchTreeFolders = async () => {
-    const treeFolders = await api.files.getFoldersTree();
+    const treeFolders = await getFoldersTree();
     this.setTreeFolders(treeFolders);
+    return treeFolders;
   };
 
   setTreeFolders = (treeFolders) => {
@@ -64,8 +37,6 @@ class TreeFoldersStore {
   addExpandedKeys = (item) => {
     this.expandedKeys.push(item);
   };
-
-  /////////////////////////////////////TODO: FOLDER
 
   get myFolder() {
     return this.treeFolders.find((x) => x.rootFolderName === "@my");
@@ -97,64 +68,55 @@ class TreeFoldersStore {
     return this.treeFolders.find((x) => x.rootFolderName === "@trash");
   }
 
-  /////////////////////////////////////TODO: ID
-
   get myFolderId() {
     return this.myFolder ? this.myFolder.id : null;
   }
-
-  // get shareFolderId() {
-  //   return this.shareFolder ?this.shareFolder.id : null;
-  // }
-
-  // get favoritesFolderId() {
-  //   return this.favoritesFolder ? this.favoritesFolder.id : null;
-  // }
-
-  // get recentFolderId() {
-
-  //   return this.recentFolder ? this.recentFolder.id : null;
-  // }
 
   get commonFolderId() {
     return this.commonFolder ? this.commonFolder.id : null;
   }
 
-  /////////////////////////////////////TODO: IS
-
   get isMyFolder() {
-    return this.myFolder && this.myFolder.id === selectedFolderStore.id;
+    return this.myFolder && this.myFolder.id === this.selectedFolderStore.id;
   }
 
   get isShareFolder() {
-    return this.shareFolder && this.shareFolder.id === selectedFolderStore.id;
+    return (
+      this.shareFolder && this.shareFolder.id === this.selectedFolderStore.id
+    );
   }
 
   get isFavoritesFolder() {
     return (
-      this.favoritesFolder && selectedFolderStore.id === this.favoritesFolder.id
+      this.favoritesFolder &&
+      this.selectedFolderStore.id === this.favoritesFolder.id
     );
   }
 
   get isRecentFolder() {
-    return this.recentFolder && selectedFolderStore.id === this.recentFolder.id;
+    return (
+      this.recentFolder && this.selectedFolderStore.id === this.recentFolder.id
+    );
   }
 
   get isPrivacyFolder() {
     return (
       this.privacyFolder &&
-      this.privacyFolder.rootFolderType === selectedFolderStore.rootFolderType
+      this.privacyFolder.rootFolderType ===
+        this.selectedFolderStore.rootFolderType
     );
   }
 
   get isCommonFolder() {
-    return this.commonFolder && this.commonFolder.id === selectedFolderStore.id;
+    return (
+      this.commonFolder && this.commonFolder.id === this.selectedFolderStore.id
+    );
   }
 
   get isRecycleBinFolder() {
     return (
       this.recycleBinFolder &&
-      selectedFolderStore.id === this.recycleBinFolder.id
+      this.selectedFolderStore.id === this.recycleBinFolder.id
     );
   }
 
@@ -175,4 +137,4 @@ class TreeFoldersStore {
   }
 }
 
-export default new TreeFoldersStore();
+export default TreeFoldersStore;
